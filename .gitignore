@@ -1,0 +1,30 @@
+# Data -- never commit raw data
+data/
+
+# Results -- regenerable from pipeline
+results/
+
+# HPC logs
+logs/
+
+# Personal notes
+*.rtf
+
+# Environment
+.env
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# R
+*.Rproj
