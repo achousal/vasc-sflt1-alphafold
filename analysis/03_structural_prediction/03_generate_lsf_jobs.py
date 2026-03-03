@@ -42,6 +42,10 @@ AF_MEM = 16000  # MB per core
 AF_WALLTIME = "24:00"
 AF_GPU = 1
 
+# HPC defaults
+DEFAULT_PROJECT_ACCOUNT = ""
+DEFAULT_GPU_TYPE = ""
+
 
 def _safe_name(target: str) -> str:
     """Sanitize a target name for filesystem and shell use."""
@@ -58,9 +62,27 @@ def _encode_b64(command: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _build_af_command(fasta_path: str, output_dir: str) -> str:
-    """Build the AlphaFold multimer CLI command."""
-    return "\n".join([
+def _build_af_command(
+    fasta_path: str,
+    output_dir: str,
+    hpc_root: str = "",
+) -> str:
+    """Build the AlphaFold multimer CLI command.
+
+    Parameters
+    ----------
+    fasta_path : str
+        Path to the two-chain FASTA file (relative to project root).
+    output_dir : str
+        Path for AF output (relative to project root).
+    hpc_root : str
+        If set, cd to this directory before running. Makes relative paths
+        resolve correctly on HPC.
+    """
+    lines = []
+    if hpc_root:
+        lines.append(f'cd "{hpc_root}"')
+    lines.extend([
         "module purge",
         "module load alphafold/2.3.2",
         "",
@@ -86,6 +108,7 @@ def _build_af_command(fasta_path: str, output_dir: str) -> str:
         "",
         'echo "[$(date)] AlphaFold Multimer complete"',
     ])
+    return "\n".join(lines)
 
 
 def _build_wrapper_script() -> str:
@@ -138,6 +161,7 @@ def _build_job_manifest(
     candidates: pd.DataFrame,
     fasta_dir: Path,
     results_base_dir: Path,
+    hpc_root: str = "",
 ) -> dict:
     """Build JSON manifest mapping job_key -> job metadata.
 
@@ -149,6 +173,8 @@ def _build_job_manifest(
         Directory containing two-chain FASTA files.
     results_base_dir : Path
         Base directory where AF outputs go (e.g. results/).
+    hpc_root : str
+        If set, injected into AF commands as working directory.
 
     Returns
     -------
@@ -168,7 +194,9 @@ def _build_job_manifest(
             continue
 
         output_dir = results_base_dir / sname
-        command = _build_af_command(str(fasta_path), str(output_dir))
+        command = _build_af_command(
+            str(fasta_path), str(output_dir), hpc_root=hpc_root
+        )
 
         job_key = f"af2_{sname}"
         manifest[job_key] = {
@@ -345,12 +373,22 @@ submit_and_track() {
 
     local job_script
     local bsub_directive="#BSUB"
+    local account_directive=""
+    if [ -n "$PROJECT_ACCOUNT" ]; then
+        account_directive="${bsub_directive} -P $PROJECT_ACCOUNT"
+    fi
+    local gpu_directive=""
+    if [ -n "$GPU_TYPE" ]; then
+        gpu_directive="${bsub_directive} -R $GPU_TYPE"
+    fi
     job_script=$(cat <<EOF
 #!/bin/bash
 ${bsub_directive} -J $job_name
+${account_directive:+$account_directive}
 ${bsub_directive} -q $queue
 ${bsub_directive} -n $cores
 ${bsub_directive} -R "rusage[mem=$mem_per_core:ngpus_excl_p=$gpu] span[hosts=1]"
+${gpu_directive:+$gpu_directive}
 ${bsub_directive} -W $walltime
 ${bsub_directive} -o $LOG_DIR/${job_name}_%J.out
 ${bsub_directive} -e $LOG_DIR/${job_name}_%J.err
@@ -409,6 +447,8 @@ def _build_orchestrator_script(
     sentinel_dir: Path,
     log_dir: Path,
     state_file: Path,
+    project_account: str = "",
+    gpu_type: str = "",
 ) -> str:
     """Build the complete orchestrator LSF script.
 
@@ -426,8 +466,11 @@ def _build_orchestrator_script(
     keys_array = "JOB_KEYS=(\n" + "\n".join(f'  "{k}"' for k in job_keys) + "\n)"
     names_array = "JOB_NAMES=(\n" + "\n".join(f'  "{n}"' for n in job_names) + "\n)"
 
+    account_line = f"\n#BSUB -P {project_account}" if project_account else ""
+    gpu_type_export = f'\nGPU_TYPE="{gpu_type}"' if gpu_type else '\nGPU_TYPE=""'
+
     return f"""#!/bin/bash
-#BSUB -J af2_orchestrator
+#BSUB -J af2_orchestrator{account_line}
 #BSUB -q premium
 #BSUB -n 1
 #BSUB -R "rusage[mem={ORCHESTRATOR_MEM}] span[hosts=1]"
@@ -450,6 +493,7 @@ POLL_INTERVAL={POLL_INTERVAL_SECONDS}
 BATCH_CHUNK={BATCH_CHUNK_SIZE}
 AF_TIMEOUT={AF_JOB_TIMEOUT_SECONDS}
 EXPECTED_JOBS={len(manifest)}
+PROJECT_ACCOUNT="{project_account}"{gpu_type_export}
 
 {_build_orchestrator_functions()}
 
@@ -555,6 +599,8 @@ def _build_standalone_lsf_script(
     sentinel_dir: Path,
     log_dir: Path,
     timestamp: str,
+    project_account: str = "",
+    gpu_type: str = "",
 ) -> str:
     """Build a standalone LSF script for one AF job.
 
@@ -562,11 +608,13 @@ def _build_standalone_lsf_script(
         bsub < jobs/af2_VEGFA.lsf
     """
     job_name = job_entry["job_name"]
+    account_line = f"\n#BSUB -P {project_account}" if project_account else ""
+    gpu_line = f"\n#BSUB -R {gpu_type}" if gpu_type else ""
     return f"""#!/bin/bash
-#BSUB -J {job_name}
+#BSUB -J {job_name}{account_line}
 #BSUB -q {job_entry["queue"]}
 #BSUB -n {job_entry["cores"]}
-#BSUB -R "rusage[mem={job_entry["mem_per_core"]}:ngpus_excl_p={job_entry["gpu"]}] span[hosts=1]"
+#BSUB -R "rusage[mem={job_entry["mem_per_core"]}:ngpus_excl_p={job_entry["gpu"]}] span[hosts=1]"{gpu_line}
 #BSUB -W {job_entry["walltime"]}
 #BSUB -o {log_dir}/{job_name}_%J.out
 #BSUB -e {log_dir}/{job_name}_%J.err
@@ -595,6 +643,9 @@ def generate_lsf_scripts(
     candidates_path: Path,
     fasta_dir: Path,
     jobs_dir: Path,
+    project_account: str = "",
+    gpu_type: str = "",
+    hpc_root: str = "",
 ) -> list[Path]:
     """Generate orchestrated LSF infrastructure for all candidates.
 
@@ -613,6 +664,13 @@ def generate_lsf_scripts(
         Directory containing two-chain FASTA files.
     jobs_dir : Path
         Output directory for all generated scripts.
+    project_account : str
+        LSF project account (e.g., 'acc_Chipuk'). Added as #BSUB -P.
+    gpu_type : str
+        GPU resource constraint (e.g., 'a100'). Added as #BSUB -R.
+    hpc_root : str
+        Absolute path to project root on HPC. If set, AF commands cd here
+        first and all paths resolve relative to it.
 
     Returns
     -------
@@ -623,16 +681,23 @@ def generate_lsf_scripts(
     jobs_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().isoformat(timespec="seconds")
 
-    # Sentinel and log directories (relative to project root)
-    log_dir = Path("logs")
-    sentinel_dir = log_dir / "sentinels"
-    state_file = sentinel_dir / "orchestrator_state.jsonl"
-
-    # Results base directory (where AF outputs go)
-    results_base = Path("results")
+    # Use hpc_root for path resolution if provided
+    if hpc_root:
+        hpc_base = Path(hpc_root)
+        log_dir = hpc_base / "logs"
+        sentinel_dir = log_dir / "sentinels"
+        state_file = sentinel_dir / "orchestrator_state.jsonl"
+        results_base = Path("results")  # relative, resolved via cd in command
+    else:
+        log_dir = Path("logs")
+        sentinel_dir = log_dir / "sentinels"
+        state_file = sentinel_dir / "orchestrator_state.jsonl"
+        results_base = Path("results")
 
     # 1. Build manifest
-    manifest = _build_job_manifest(candidates, fasta_dir, results_base)
+    manifest = _build_job_manifest(
+        candidates, fasta_dir, results_base, hpc_root=hpc_root
+    )
     manifest_path = jobs_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -646,14 +711,25 @@ def generate_lsf_scripts(
     logger.info("Generated: wrapper.sh")
 
     # 3. Build orchestrator script
+    # For the orchestrator, use HPC paths for manifest/wrapper/sentinel
+    if hpc_root:
+        hpc_jobs_dir = hpc_base / "results" / "03_structural_prediction" / "jobs"
+        orch_manifest_path = hpc_jobs_dir / "manifest.json"
+        orch_wrapper_path = hpc_jobs_dir / "wrapper.sh"
+    else:
+        orch_manifest_path = manifest_path
+        orch_wrapper_path = wrapper_path
+
     orchestrator_path = jobs_dir / "orchestrator.lsf"
     orchestrator_content = _build_orchestrator_script(
         manifest=manifest,
-        manifest_path=manifest_path,
-        wrapper_path=wrapper_path,
+        manifest_path=orch_manifest_path,
+        wrapper_path=orch_wrapper_path,
         sentinel_dir=sentinel_dir,
         log_dir=log_dir,
         state_file=state_file,
+        project_account=project_account,
+        gpu_type=gpu_type,
     )
     orchestrator_path.write_text(orchestrator_content)
     orchestrator_path.chmod(0o750)
@@ -663,7 +739,8 @@ def generate_lsf_scripts(
     scripts = []
     for job_key, job_entry in manifest.items():
         script_content = _build_standalone_lsf_script(
-            job_entry, wrapper_path, sentinel_dir, log_dir, timestamp
+            job_entry, orch_wrapper_path, sentinel_dir, log_dir, timestamp,
+            project_account=project_account, gpu_type=gpu_type,
         )
         script_path = jobs_dir / f"{job_key}.lsf"
         script_path.write_text(script_content)
@@ -671,9 +748,13 @@ def generate_lsf_scripts(
         logger.info("Generated: %s", script_path.name)
 
     # 5. Generate submission convenience script
+    if hpc_root:
+        orch_submit_path_ref = hpc_base / "results" / "03_structural_prediction" / "jobs" / "orchestrator.lsf"
+    else:
+        orch_submit_path_ref = orchestrator_path
     submit_path = jobs_dir / "submit_orchestrator.sh"
     submit_path.write_text(
-        _build_submit_orchestrator_script(orchestrator_path)
+        _build_submit_orchestrator_script(orch_submit_path_ref)
     )
     submit_path.chmod(0o755)
     logger.info("Generated: submit_orchestrator.sh")

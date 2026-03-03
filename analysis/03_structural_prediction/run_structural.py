@@ -84,6 +84,24 @@ def main():
         default=20,
         help="Max candidates to select (excluding controls)",
     )
+    parser.add_argument(
+        "--project-account",
+        type=str,
+        default="",
+        help="LSF project account (e.g., acc_Chipuk). Required on Minerva.",
+    )
+    parser.add_argument(
+        "--gpu-type",
+        type=str,
+        default="",
+        help="GPU resource constraint (e.g., a100, v100, h100nvl).",
+    )
+    parser.add_argument(
+        "--hpc-root",
+        type=str,
+        default="",
+        help="Absolute path to project root on HPC. Sets working directory in job scripts.",
+    )
     args = parser.parse_args()
 
     results_dir = args.results_dir
@@ -139,7 +157,12 @@ def main():
                 logger.error("Run --step select first")
                 sys.exit(1)
 
-            scripts = generate_lsf_scripts(candidates_path, fasta_dir, jobs_dir)
+            scripts = generate_lsf_scripts(
+                candidates_path, fasta_dir, jobs_dir,
+                project_account=args.project_account,
+                gpu_type=args.gpu_type,
+                hpc_root=args.hpc_root,
+            )
             logger.info("Generated %d LSF scripts in %s", len(scripts), jobs_dir)
             logger.info(
                 "To submit (orchestrated parallel): bash %s/submit_orchestrator.sh",
