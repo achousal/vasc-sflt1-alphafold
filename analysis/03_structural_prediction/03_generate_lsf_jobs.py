@@ -43,7 +43,7 @@ AF_WALLTIME = "24:00"
 AF_GPU = 1
 
 # HPC defaults
-DEFAULT_PROJECT_ACCOUNT = ""
+DEFAULT_PROJECT_ACCOUNT = "acc_Chipuk_Laboratory"
 DEFAULT_GPU_TYPE = ""
 
 
@@ -67,7 +67,7 @@ def _build_af_command(
     output_dir: str,
     hpc_root: str = "",
 ) -> str:
-    """Build the AlphaFold multimer CLI command.
+    """Build the AlphaFold multimer CLI command (singularity container).
 
     Parameters
     ----------
@@ -84,25 +84,41 @@ def _build_af_command(
         lines.append(f'cd "{hpc_root}"')
     lines.extend([
         "module purge",
-        "module load alphafold/2.3.2",
-        'source activate "$AF2ENV"',
+        "module load alphafold/2.3.2-singularity",
         "",
         f'FASTA_INPUT="{fasta_path}"',
         f'OUTPUT_DIR="{output_dir}"',
-        'DB_DIR="${AF2DATA:-/sc/arion/packages/alphafold/alphafold_data/2.3.2}"',
         "",
         'mkdir -p "$OUTPUT_DIR"',
         "",
-        'echo "[$(date)] Starting AlphaFold Multimer"',
-        'echo "FASTA: $FASTA_INPUT"',
-        'echo "Output: $OUTPUT_DIR"',
+        "# Resolve to absolute paths for singularity bind mounts",
+        'WORK_DIR="$(pwd)"',
+        'if [[ "$FASTA_INPUT" != /* ]]; then',
+        '    FASTA_ABS="${WORK_DIR}/${FASTA_INPUT}"',
+        "else",
+        '    FASTA_ABS="$FASTA_INPUT"',
+        "fi",
+        'if [[ "$OUTPUT_DIR" != /* ]]; then',
+        '    OUTPUT_ABS="${WORK_DIR}/${OUTPUT_DIR}"',
+        "else",
+        '    OUTPUT_ABS="$OUTPUT_DIR"',
+        "fi",
         "",
-        '"${RUNAF_PY:-run_alphafold.py}" \\',
-        '    --fasta_paths="$FASTA_INPUT" \\',
-        '    --output_dir="$OUTPUT_DIR" \\',
+        'echo "[$(date)] Starting AlphaFold Multimer (singularity)"',
+        'echo "FASTA: $FASTA_ABS"',
+        'echo "Output: $OUTPUT_ABS"',
+        'echo "Container: $AF2IMAGE"',
+        'echo "Data: $AF2DATA"',
+        "",
+        "singularity run --nv \\",
+        '    --bind "${AF2DATA}":/data \\',
+        "    --bind /sc/arion:/sc/arion \\",
+        '    "$AF2IMAGE" \\',
+        '    --fasta_paths="$FASTA_ABS" \\',
+        '    --output_dir="$OUTPUT_ABS" \\',
+        "    --data_dir=/data \\",
         "    --model_preset=multimer \\",
         "    --db_preset=full_dbs \\",
-        '    --data_dir="$DB_DIR" \\',
         "    --max_template_date=2024-01-01 \\",
         "    --num_multimer_predictions_per_model=5 \\",
         "    --use_gpu_relax",
@@ -378,18 +394,20 @@ submit_and_track() {
     if [ -n "$PROJECT_ACCOUNT" ]; then
         account_directive="${bsub_directive} -P $PROJECT_ACCOUNT"
     fi
-    local gpu_directive=""
+    local gpu_type_directive=""
     if [ -n "$GPU_TYPE" ]; then
-        gpu_directive="${bsub_directive} -R $GPU_TYPE"
+        gpu_type_directive="${bsub_directive} -R $GPU_TYPE"
     fi
     job_script=$(cat <<EOF
 #!/bin/bash
+${bsub_directive} -L /bin/bash
 ${bsub_directive} -J $job_name
 ${account_directive:+$account_directive}
 ${bsub_directive} -q $queue
 ${bsub_directive} -n $cores
-${bsub_directive} -R "rusage[mem=$mem_per_core:ngpus_excl_p=$gpu] span[hosts=1]"
-${gpu_directive:+$gpu_directive}
+${bsub_directive} -R "rusage[mem=$mem_per_core] span[hosts=1]"
+${bsub_directive} -gpu "num=$gpu"
+${gpu_type_directive:+$gpu_type_directive}
 ${bsub_directive} -W $walltime
 ${bsub_directive} -o $LOG_DIR/${job_name}_%J.out
 ${bsub_directive} -e $LOG_DIR/${job_name}_%J.err
@@ -471,6 +489,7 @@ def _build_orchestrator_script(
     gpu_type_export = f'\nGPU_TYPE="{gpu_type}"' if gpu_type else '\nGPU_TYPE=""'
 
     return f"""#!/bin/bash
+#BSUB -L /bin/bash
 #BSUB -J af2_orchestrator{account_line}
 #BSUB -q premium
 #BSUB -n 1
@@ -610,12 +629,14 @@ def _build_standalone_lsf_script(
     """
     job_name = job_entry["job_name"]
     account_line = f"\n#BSUB -P {project_account}" if project_account else ""
-    gpu_line = f"\n#BSUB -R {gpu_type}" if gpu_type else ""
+    gpu_type_line = f"\n#BSUB -R {gpu_type}" if gpu_type else ""
     return f"""#!/bin/bash
+#BSUB -L /bin/bash
 #BSUB -J {job_name}{account_line}
 #BSUB -q {job_entry["queue"]}
 #BSUB -n {job_entry["cores"]}
-#BSUB -R "rusage[mem={job_entry["mem_per_core"]}:ngpus_excl_p={job_entry["gpu"]}] span[hosts=1]"{gpu_line}
+#BSUB -R "rusage[mem={job_entry["mem_per_core"]}] span[hosts=1]"
+#BSUB -gpu "num={job_entry["gpu"]}"{gpu_type_line}
 #BSUB -W {job_entry["walltime"]}
 #BSUB -o {log_dir}/{job_name}_%J.out
 #BSUB -e {log_dir}/{job_name}_%J.err
@@ -625,13 +646,59 @@ def _build_standalone_lsf_script(
 # Generated: {timestamp}
 #
 # Standalone script for manual resubmission.
-# For orchestrated parallel execution, use submit_orchestrator.sh instead.
+# For parallel submission of all jobs, use submit_all.sh instead.
 
 set -euo pipefail
 export AF_JOB_COMMAND_B64="{job_entry["command_b64"]}"
 export AF_JOB_NAME="{job_name}"
 export AF_SENTINEL_DIR="{sentinel_dir.resolve()}"
 "{wrapper_path.resolve()}"
+"""
+
+
+def _build_submit_all_script(jobs_dir: Path) -> str:
+    """Build a simple direct-submission script for all AF jobs.
+
+    Loops over all af2_*.lsf files and submits them directly via bsub,
+    with a short delay between submissions to avoid scheduler flooding.
+    """
+    return f"""#!/bin/bash
+# submit_all.sh -- Submit all AlphaFold jobs directly (parallel)
+# Generated: {datetime.now().isoformat(timespec="seconds")}
+#
+# Usage: bash submit_all.sh
+#   or:  bash submit_all.sh --dry-run
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
+DRY_RUN=false
+if [[ "${{1:-}}" == "--dry-run" ]]; then
+    DRY_RUN=true
+fi
+
+count=0
+for lsf in "$SCRIPT_DIR"/af2_*.lsf; do
+    [ -f "$lsf" ] || continue
+    name=$(basename "$lsf" .lsf)
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "[DRY RUN] bsub < $lsf"
+    else
+        echo "Submitting $name..."
+        bsub < "$lsf"
+        sleep 2
+    fi
+    count=$((count + 1))
+done
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo ""
+    echo "Would submit $count jobs. Remove --dry-run to submit."
+else
+    echo ""
+    echo "Submitted $count jobs."
+    echo "Monitor: bjobs -w | grep af2_"
+fi
 """
 
 
@@ -759,6 +826,12 @@ def generate_lsf_scripts(
     )
     submit_path.chmod(0o755)
     logger.info("Generated: submit_orchestrator.sh")
+
+    # 6. Generate submit_all.sh for direct parallel submission
+    submit_all_path = jobs_dir / "submit_all.sh"
+    submit_all_path.write_text(_build_submit_all_script(jobs_dir))
+    submit_all_path.chmod(0o755)
+    logger.info("Generated: submit_all.sh")
 
     logger.info(
         "Generated %d LSF scripts + orchestrator infrastructure", len(scripts)
