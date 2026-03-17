@@ -88,7 +88,7 @@ def main():
         "--project-account",
         type=str,
         default="",
-        help="LSF project account (e.g., acc_Chipuk). Required on Minerva.",
+        help="LSF project account (e.g., acc_vascbrain). Required on Minerva.",
     )
     parser.add_argument(
         "--gpu-type",
