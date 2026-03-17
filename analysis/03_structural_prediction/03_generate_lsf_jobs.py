@@ -43,7 +43,7 @@ AF_WALLTIME = "24:00"
 AF_GPU = 1
 
 # HPC defaults
-DEFAULT_PROJECT_ACCOUNT = "acc_Chipuk_Laboratory"
+DEFAULT_PROJECT_ACCOUNT = "acc_vascbrain"
 DEFAULT_GPU_TYPE = ""
 
 
@@ -117,6 +117,14 @@ def _build_af_command(
         '    --fasta_paths="$FASTA_ABS" \\',
         '    --output_dir="$OUTPUT_ABS" \\',
         "    --data_dir=/data \\",
+        "    --uniref90_database_path=/data/uniref90/uniref90.fasta \\",
+        "    --mgnify_database_path=/data/mgnify/mgy_clusters_2022_05.fa \\",
+        "    --template_mmcif_dir=/data/pdb_mmcif/mmcif_files \\",
+        "    --obsolete_pdbs_path=/data/pdb_mmcif/obsolete.dat \\",
+        "    --pdb_seqres_database_path=/data/pdb_seqres/pdb_seqres.txt \\",
+        "    --uniprot_database_path=/data/uniprot/uniprot.fasta \\",
+        "    --uniref30_database_path=/data/uniref30/UniRef30_2021_03 \\",
+        "    --bfd_database_path=/data/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt \\",
         "    --model_preset=multimer \\",
         "    --db_preset=full_dbs \\",
         "    --max_template_date=2024-01-01 \\",
