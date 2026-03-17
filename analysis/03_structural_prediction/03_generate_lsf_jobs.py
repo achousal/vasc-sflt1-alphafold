@@ -741,7 +741,7 @@ def generate_lsf_scripts(
     jobs_dir : Path
         Output directory for all generated scripts.
     project_account : str
-        LSF project account (e.g., 'acc_Chipuk'). Added as #BSUB -P.
+        LSF project account (e.g., 'acc_vascbrain'). Added as #BSUB -P.
     gpu_type : str
         GPU resource constraint (e.g., 'a100'). Added as #BSUB -R.
     hpc_root : str
