@@ -789,7 +789,7 @@ def generate_lsf_scripts(
     # 3. Build orchestrator script
     # For the orchestrator, use HPC paths for manifest/wrapper/sentinel
     if hpc_root:
-        hpc_jobs_dir = hpc_base / "results" / "03_structural_prediction" / "jobs"
+        hpc_jobs_dir = hpc_base / jobs_dir.name
         orch_manifest_path = hpc_jobs_dir / "manifest.json"
         orch_wrapper_path = hpc_jobs_dir / "wrapper.sh"
     else:
@@ -825,7 +825,7 @@ def generate_lsf_scripts(
 
     # 5. Generate submission convenience script
     if hpc_root:
-        orch_submit_path_ref = hpc_base / "results" / "03_structural_prediction" / "jobs" / "orchestrator.lsf"
+        orch_submit_path_ref = hpc_jobs_dir / "orchestrator.lsf"
     else:
         orch_submit_path_ref = orchestrator_path
     submit_path = jobs_dir / "submit_orchestrator.sh"
