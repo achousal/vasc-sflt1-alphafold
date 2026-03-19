@@ -649,7 +649,7 @@ def _build_standalone_lsf_script(
 #BSUB -o {log_dir}/{job_name}_%J.out
 #BSUB -e {log_dir}/{job_name}_%J.err
 
-# AlphaFold Multimer: sFLT1 D1-D3 vs {job_entry["target"]}
+# AlphaFold Multimer: sFLT1 vs {job_entry["target"]}
 # UniProt: {job_entry["uniprot"]}
 # Generated: {timestamp}
 #
