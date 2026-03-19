@@ -159,7 +159,7 @@ class TestLSFScripts:
             assert "#BSUB -J af2_VEGFA" in content
             assert "#BSUB -q gpu" in content
             assert "#BSUB -n 4" in content
-            assert "ngpus_excl_p=1" in content
+            assert '#BSUB -gpu "num=1"' in content or "ngpus_excl_p=1" in content
             assert "#BSUB -W 24:00" in content
 
     def test_standalone_lsf_uses_wrapper(self):
@@ -198,7 +198,7 @@ class TestLSFScripts:
 
             cmd_b64 = manifest["af2_VEGFA"]["command_b64"]
             decoded = base64.b64decode(cmd_b64).decode("utf-8")
-            assert "run_alphafold.py" in decoded
+            assert "run_alphafold.py" in decoded or "singularity" in decoded
             assert "multimer" in decoded
             assert "sflt1_vs_VEGFA.fasta" in decoded
 

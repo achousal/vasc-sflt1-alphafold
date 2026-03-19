@@ -140,6 +140,83 @@ def load_pae_matrix(pae_path: Path) -> np.ndarray | None:
     return None
 
 
+def compute_interface_metrics(
+    pkl_path: Path,
+    chain_a_len: int,
+    contact_threshold: float = 10.0,
+) -> tuple[float, int]:
+    """Compute interface pLDDT and interface residue count from AF2 pkl.
+
+    Interface residues are defined as residues where the minimum inter-chain
+    PAE to any residue in the other chain is below contact_threshold (Angstroms).
+
+    Parameters
+    ----------
+    pkl_path : Path
+        Path to result_model_*.pkl file.
+    chain_a_len : int
+        Number of residues in chain A (sFLT1).
+    contact_threshold : float
+        PAE cutoff (Angstroms) for defining interface residues. Default 10.0.
+
+    Returns
+    -------
+    tuple[float, int]
+        (mean_interface_plddt, n_interface_residues). Returns (nan, 0) on failure.
+    """
+    import pickle
+
+    try:
+        with open(pkl_path, "rb") as f:
+            data = pickle.load(f)
+    except Exception as e:
+        logger.warning("Failed to load pkl %s: %s", pkl_path, e)
+        return np.nan, 0
+
+    plddt = data.get("plddt", None)   # shape [N_total]
+    pae = data.get("predicted_aligned_error", None)  # shape [N, N]
+
+    if plddt is None or pae is None:
+        logger.debug("pkl %s missing plddt or predicted_aligned_error", pkl_path)
+        return np.nan, 0
+
+    pae = np.array(pae)
+    plddt = np.array(plddt)
+    n = pae.shape[0]
+
+    if chain_a_len >= n or chain_a_len <= 0:
+        logger.warning(
+            "chain_a_len=%d out of range for pae shape %s in %s",
+            chain_a_len, pae.shape, pkl_path,
+        )
+        return np.nan, 0
+
+    # Inter-chain PAE blocks
+    block_ab = pae[:chain_a_len, chain_a_len:]   # A->B: shape [chain_a_len, chain_b_len]
+    block_ba = pae[chain_a_len:, :chain_a_len]   # B->A: shape [chain_b_len, chain_a_len]
+
+    # Interface residues in chain A: min PAE to any B residue < threshold
+    min_pae_a = np.min(block_ab, axis=1)   # shape [chain_a_len]
+    interface_a = min_pae_a < contact_threshold
+
+    # Interface residues in chain B: min PAE to any A residue < threshold
+    min_pae_b = np.min(block_ba, axis=1)   # shape [chain_b_len]
+    interface_b = min_pae_b < contact_threshold
+
+    n_interface = int(np.sum(interface_a) + np.sum(interface_b))
+
+    # Build full-length interface mask
+    interface_mask = np.zeros(n, dtype=bool)
+    interface_mask[:chain_a_len] = interface_a
+    interface_mask[chain_a_len:] = interface_b
+
+    if np.sum(interface_mask) == 0:
+        return np.nan, 0
+
+    mean_plddt = float(np.mean(plddt[interface_mask]))
+    return round(mean_plddt, 2), n_interface
+
+
 def classify_interaction(iptm: float, mean_pae: float) -> str:
     """Classify predicted interaction based on ipTM and PAE thresholds.
 
@@ -196,8 +273,16 @@ def parse_all_results(
         safe_name = target.replace("/", "-").replace(" ", "_").replace(":", "_")
 
         result_dir = af_output_dir / safe_name
-        if not result_dir.exists():
-            logger.warning("No output directory for %s at %s", target, result_dir)
+
+        # Issue 1 fix: check for sflt1_vs_{safe_name} subdirectory first
+        nested_dir = result_dir / f"sflt1_vs_{safe_name}"
+        if nested_dir.exists():
+            actual_result_dir = nested_dir
+        else:
+            actual_result_dir = result_dir
+
+        if not actual_result_dir.exists():
+            logger.warning("No output directory for %s at %s", target, actual_result_dir)
             rows.append({
                 "target": target, "uniprot": uniprot,
                 "iptm_best": np.nan, "iptm_mean": np.nan, "ptm_best": np.nan,
@@ -210,7 +295,7 @@ def parse_all_results(
             continue
 
         # Parse ranking_debug.json
-        ranking_path = result_dir / "ranking_debug.json"
+        ranking_path = actual_result_dir / "ranking_debug.json"
         if not ranking_path.exists():
             logger.warning("No ranking_debug.json for %s", target)
             rows.append({
@@ -232,13 +317,18 @@ def parse_all_results(
         iptm_mean = float(np.mean(iptm_values)) if iptm_values else np.nan
         ptm_best = max(ptm_values) if ptm_values else np.nan
 
-        # Try to parse PAE for the best model
+        # Parse PAE and interface metrics from the best model pkl
         mean_pae = np.nan
+        mean_interface_plddt = np.nan
+        n_interface_residues = 0
+
         if model_scores:
             best_model = min(model_scores, key=lambda k: model_scores[k]["order"])
+
+            # Try PAE sources in priority order
             pae_candidates = [
-                result_dir / f"pae_{best_model}.json",
-                result_dir / f"result_{best_model}.pkl",
+                actual_result_dir / f"pae_{best_model}.json",
+                actual_result_dir / f"result_{best_model}.pkl",
             ]
             for pae_path in pae_candidates:
                 if pae_path.exists():
@@ -246,6 +336,15 @@ def parse_all_results(
                     if pae_mat is not None:
                         mean_pae = compute_interchain_pae(pae_mat, sflt1_length)
                         break
+
+            # Issue 2 fix: compute interface metrics from best model pkl
+            best_pkl = actual_result_dir / f"result_{best_model}.pkl"
+            if best_pkl.exists():
+                mean_interface_plddt, n_interface_residues = compute_interface_metrics(
+                    best_pkl, sflt1_length
+                )
+            else:
+                logger.debug("Best model pkl not found for %s: %s", target, best_pkl)
 
         call = classify_interaction(iptm_best, mean_pae)
 
@@ -256,9 +355,9 @@ def parse_all_results(
             "iptm_mean": round(iptm_mean, 4) if not np.isnan(iptm_mean) else np.nan,
             "ptm_best": round(ptm_best, 4) if not np.isnan(ptm_best) else np.nan,
             "mean_interchain_pae": round(mean_pae, 2) if not np.isnan(mean_pae) else np.nan,
-            "mean_interface_plddt": np.nan,  # Requires structure parsing
+            "mean_interface_plddt": mean_interface_plddt,
             "interaction_call": call,
-            "n_interface_residues": 0,  # Requires structure parsing
+            "n_interface_residues": n_interface_residues,
             "n_models_parsed": len(iptm_values),
         })
 
