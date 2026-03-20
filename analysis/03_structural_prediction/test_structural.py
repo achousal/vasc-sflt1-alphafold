@@ -116,6 +116,79 @@ class TestSequences:
 
         path.unlink()
 
+    def test_two_chain_fasta_with_partner_region(self):
+        with tempfile.NamedTemporaryFile(suffix=".fasta", mode="w", delete=False) as f:
+            path = Path(f.name)
+
+        mod02.write_two_chain_fasta(
+            "MVSYW" * 20, "ACDEF" * 10, "NRP1", "O14786", path,
+            partner_region="ectodomain_22-856",
+        )
+
+        content = path.read_text()
+        headers = [l for l in content.strip().split("\n") if l.startswith(">")]
+        assert "ectodomain_22-856" in headers[1]
+        path.unlink()
+
+
+class TestProteinTopology:
+
+    def test_soluble_protein_topology(self):
+        topo = mod02.ProteinTopology(
+            accession="P15692", seq_length=395,
+            signal_peptide=(1, 26), transmembrane=(),
+            protein_type="soluble",
+        )
+        assert not topo.is_transmembrane
+        assert topo.ectodomain_range is None
+
+    def test_type_i_tm_topology(self):
+        topo = mod02.ProteinTopology(
+            accession="O14786", seq_length=923,
+            signal_peptide=(1, 21), transmembrane=((857, 879),),
+            protein_type="type_i_tm",
+        )
+        assert topo.is_transmembrane
+        assert topo.ectodomain_range == (22, 856)
+        assert topo.ectodomain_length == 835
+
+    def test_multi_tm_topology(self):
+        topo = mod02.ProteinTopology(
+            accession="O14514", seq_length=1584,
+            signal_peptide=(1, 30),
+            transmembrane=((949, 969), (980, 1000), (1010, 1030)),
+            protein_type="multi_tm",
+        )
+        assert topo.is_transmembrane
+        assert topo.ectodomain_range == (31, 948)
+
+    def test_no_signal_peptide(self):
+        topo = mod02.ProteinTopology(
+            accession="TEST", seq_length=500,
+            signal_peptide=None, transmembrane=((400, 420),),
+            protein_type="type_i_tm",
+        )
+        assert topo.ectodomain_range == (1, 399)
+
+    def test_parse_topology_from_mock_json(self):
+        mock_data = {
+            "sequence": {"length": 923},
+            "features": [
+                {"type": "Signal",
+                 "location": {"start": {"value": 1}, "end": {"value": 21}}},
+                {"type": "Transmembrane",
+                 "location": {"start": {"value": 857}, "end": {"value": 879}}},
+                {"type": "Domain",
+                 "location": {"start": {"value": 22}, "end": {"value": 140}},
+                 "description": "CUB 1"},
+            ],
+        }
+        topo = mod02._parse_topology("O14786", mock_data)
+        assert topo.protein_type == "type_i_tm"
+        assert topo.signal_peptide == (1, 21)
+        assert topo.transmembrane == ((857, 879),)
+        assert topo.ectodomain_range == (22, 856)
+
 
 # --- Test LSF script generation ---
 
