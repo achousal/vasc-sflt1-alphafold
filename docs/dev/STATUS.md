@@ -12,7 +12,7 @@ Updated: 2026-03-19
   - [x] T0.1: Audit batch correction status in upstream LMs -- **NO batch correction**
   - [x] T0.2: MarkVCID covariates: Age only (ANCOVA). HYPERTEN + Fazekas available but NOT in LMs. Others: ask PI
   - [x] T0.3: MarkVCID N=~69 post-exclusion (7,335 human proteins). Others: GNPC ~2,400+, WASHU ~2,200+, UCSF_AD ~50-200
-  - [ ] T0.4: VEGF-depletion inversion test
+  - [x] T0.4: VEGF-depletion inversion test -- **PASSED**: 37/38 axon terms retained, signal is VEGF-independent
 
 ## Next
 
