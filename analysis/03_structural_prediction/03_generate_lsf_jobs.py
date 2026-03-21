@@ -124,7 +124,7 @@ def _build_af_command(
         "    --pdb_seqres_database_path=/data/pdb_seqres/pdb_seqres.txt \\",
         "    --uniprot_database_path=/data/uniprot/uniprot.fasta \\",
         "    --uniref30_database_path=/data/uniref30/UniRef30_2021_03 \\",
-        "    --bfd_database_path=/data/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt \\",
+        "    --small_bfd_database_path=/data/small_bfd/bfd-first_non_consensus_sequences.fasta \\",
         "    --model_preset=multimer \\",
         "    --db_preset=reduced_dbs \\",
         "    --max_template_date=2024-01-01 \\",
