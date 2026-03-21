@@ -192,6 +192,7 @@ def _build_job_manifest(
     fasta_dir: Path,
     results_base_dir: Path,
     hpc_root: str = "",
+    local_fasta_dir: Path | None = None,
 ) -> dict:
     """Build JSON manifest mapping job_key -> job metadata.
 
@@ -200,11 +201,14 @@ def _build_job_manifest(
     candidates : pd.DataFrame
         Candidates with target, uniprot columns.
     fasta_dir : Path
-        Directory containing two-chain FASTA files.
+        Directory for FASTA paths in generated commands. When hpc_root is set,
+        this should be relative to hpc_root (e.g. "fasta").
     results_base_dir : Path
         Base directory where AF outputs go (e.g. results/).
     hpc_root : str
         If set, injected into AF commands as working directory.
+    local_fasta_dir : Path | None
+        Local filesystem path for FASTA existence checks. If None, uses fasta_dir.
 
     Returns
     -------
@@ -212,17 +216,19 @@ def _build_job_manifest(
         Mapping of job_key -> {job_name, target, uniprot, queue, cores,
         mem_per_core, walltime, fasta_path, output_dir, command_b64}.
     """
+    check_dir = local_fasta_dir if local_fasta_dir is not None else fasta_dir
     manifest = {}
     for _, row in candidates.iterrows():
         target = row["target"]
         uniprot = row["uniprot"]
         sname = _safe_name(target)
 
-        fasta_path = fasta_dir / f"sflt1_vs_{sname}.fasta"
-        if not fasta_path.exists():
+        fasta_filename = f"sflt1_vs_{sname}.fasta"
+        if not (check_dir / fasta_filename).exists():
             logger.warning("No FASTA for %s, skipping manifest entry", target)
             continue
 
+        fasta_path = fasta_dir / fasta_filename
         output_dir = results_base_dir / sname
         command = _build_af_command(
             str(fasta_path), str(output_dir), hpc_root=hpc_root
@@ -769,15 +775,19 @@ def generate_lsf_scripts(
         sentinel_dir = log_dir / "sentinels"
         state_file = sentinel_dir / "orchestrator_state.jsonl"
         results_base = Path("results")  # relative, resolved via cd in command
+        # Make fasta_dir relative to hpc_root so paths resolve after cd
+        manifest_fasta_dir = Path("fasta")
     else:
         log_dir = Path("logs")
         sentinel_dir = log_dir / "sentinels"
         state_file = sentinel_dir / "orchestrator_state.jsonl"
         results_base = Path("results")
+        manifest_fasta_dir = fasta_dir
 
     # 1. Build manifest
     manifest = _build_job_manifest(
-        candidates, fasta_dir, results_base, hpc_root=hpc_root
+        candidates, manifest_fasta_dir, results_base, hpc_root=hpc_root,
+        local_fasta_dir=fasta_dir,
     )
     manifest_path = jobs_dir / "manifest.json"
     manifest_path.write_text(
