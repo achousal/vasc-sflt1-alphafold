@@ -127,7 +127,6 @@ def _build_af_command(
         "    --obsolete_pdbs_path=/data/pdb_mmcif/obsolete.dat \\",
         "    --pdb_seqres_database_path=/data/pdb_seqres/pdb_seqres.txt \\",
         "    --uniprot_database_path=/data/uniprot/uniprot.fasta \\",
-        "    --uniref30_database_path=/data/uniref30/UniRef30_2021_03 \\",
         "    --small_bfd_database_path=/data/small_bfd/bfd-first_non_consensus_sequences.fasta \\",
         "    --model_preset=multimer \\",
         "    --db_preset=reduced_dbs \\",
@@ -199,7 +198,10 @@ print(base64.b64decode(sys.argv[1]).decode("utf-8"), end="")
 PY
 )
 
-eval "$COMMAND" || _af_rc=$?
+set +e
+eval "$COMMAND"
+_af_rc=$?
+set -e
 exit "$_af_rc"
 """
 
