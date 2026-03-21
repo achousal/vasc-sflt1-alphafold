@@ -143,11 +143,10 @@ def _build_wrapper_script() -> str:
     1. Validates required environment variables
     2. Decodes the base64-encoded command
     3. Executes it with error trapping
-    4. Writes job name to sentinel completed.log on EXIT (success or failure)
+    4. Routes job name to completed.log (rc=0) or failed.log (rc!=0)
 
-    The EXIT trap ensures the sentinel is always written, so the orchestrator
-    can detect both successes and failures. check_upstream_failures() then
-    distinguishes success from failure via bjobs/bhist.
+    The EXIT trap ensures a sentinel is always written. Failed jobs include
+    exit code in the failed.log entry for diagnosis.
     """
     return """#!/bin/bash
 set -euo pipefail
@@ -165,10 +164,16 @@ if [ -z "${AF_SENTINEL_DIR:-}" ]; then
     exit 1
 fi
 
-# Write sentinel on exit (success or failure) so orchestrator always sees completion.
-# check_upstream_failures() distinguishes EXIT/TERM from success via bjobs/bhist.
+# Write sentinel on exit, routing to completed.log or failed.log based on exit code.
 _af_rc=0
-trap 'echo "${AF_JOB_NAME}" >> "$AF_SENTINEL_DIR/completed.log"' EXIT
+_write_sentinel() {
+    if [ "$_af_rc" -eq 0 ]; then
+        echo "${AF_JOB_NAME}" >> "$AF_SENTINEL_DIR/completed.log"
+    else
+        echo "${AF_JOB_NAME} rc=${_af_rc}" >> "$AF_SENTINEL_DIR/failed.log"
+    fi
+}
+trap '_write_sentinel' EXIT
 
 COMMAND=$(python3 - "$AF_JOB_COMMAND_B64" <<'PY'
 import base64

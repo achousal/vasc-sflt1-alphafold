@@ -244,7 +244,7 @@ def classify_interaction(iptm: float, mean_pae: float) -> str:
 def parse_all_results(
     candidates_path: Path,
     af_output_dir: Path,
-    sflt1_length: int = 338,
+    sflt1_length: int = 304,
 ) -> pd.DataFrame:
     """Parse AlphaFold results for all candidates.
 
@@ -255,7 +255,7 @@ def parse_all_results(
     af_output_dir : Path
         Root directory containing per-candidate AlphaFold output subdirs.
     sflt1_length : int
-        Length of sFLT1 chain (D1-D3 = 338).
+        Length of sFLT1 chain A. Corrected constructs: D1-D3=304, D1-D6=631, D1-D7=721.
 
     Returns
     -------

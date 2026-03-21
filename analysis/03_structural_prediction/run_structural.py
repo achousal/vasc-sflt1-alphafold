@@ -104,7 +104,18 @@ def main():
         default="",
         help="Absolute path to project root on HPC. Sets working directory in job scripts.",
     )
+    parser.add_argument(
+        "--construct",
+        choices=["d1d3", "d1d6", "d1d7"],
+        default="d1d3",
+        help="sFLT1 construct variant. Sets chain A length for scoring. "
+             "d1d3=304aa, d1d6=631aa, d1d7=721aa.",
+    )
     args = parser.parse_args()
+
+    # Resolve sFLT1 chain length from construct choice
+    _construct_lengths = {"d1d3": 304, "d1d6": 631, "d1d7": 721}
+    sflt1_length = _construct_lengths[args.construct]
 
     results_dir = args.results_dir
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -188,9 +199,9 @@ def main():
                 logger.info("Run AlphaFold jobs on HPC first, then point --af-output-dir here")
                 sys.exit(1)
 
-            scores = parse_all_results(candidates_path, af_dir)
+            scores = parse_all_results(candidates_path, af_dir, sflt1_length=sflt1_length)
             scores.to_csv(scores_path, index=False)
-            logger.info("Saved: %s", scores_path.name)
+            logger.info("Saved: %s (construct=%s, chain_a=%d aa)", scores_path.name, args.construct, sflt1_length)
 
         elif step == "plot":
             logger.info("=== Step 3e: Generating plots ===")
@@ -202,7 +213,7 @@ def main():
             scores = pd.read_csv(scores_path)
             candidates = pd.read_csv(candidates_path)
 
-            plot_iptm_barplot(scores, results_dir / "step03_iptm_barplot.pdf")
+            plot_iptm_barplot(scores, results_dir / f"step03_iptm_barplot_{args.construct}.pdf")
             generate_summary_table(scores, results_dir / "step03_summary_table.csv")
             generate_stats_report(scores, candidates, results_dir / "step03_stats_report.txt")
 
@@ -244,7 +255,7 @@ def main():
                     logger.warning("No PAE data found for %s, skipping heatmap", target)
                     continue
                 out_path = results_dir / f"step03_pae_heatmap_{safe_name}.pdf"
-                plot_pae_heatmap(pae_matrix, sflt1_length=338, target_name=target, output_path=out_path)
+                plot_pae_heatmap(pae_matrix, sflt1_length=sflt1_length, target_name=target, output_path=out_path)
                 logger.info("Saved PAE heatmap: %s", out_path.name)
 
     logger.info("=== Step 3 complete ===")
