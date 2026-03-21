@@ -126,7 +126,7 @@ def _build_af_command(
         "    --uniref30_database_path=/data/uniref30/UniRef30_2021_03 \\",
         "    --bfd_database_path=/data/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt \\",
         "    --model_preset=multimer \\",
-        "    --db_preset=full_dbs \\",
+        "    --db_preset=reduced_dbs \\",
         "    --max_template_date=2024-01-01 \\",
         "    --num_multimer_predictions_per_model=5 \\",
         "    --use_gpu_relax",
