@@ -4,12 +4,12 @@ Updated: 2026-03-21
 
 ## Now
 
-- [ ] **AF2 resubmission blocked on diagnostic** -- all 44 corrected jobs failed (HHblits chain B crash)
-  - [x] Wrapper EXIT trap bug fixed (failed.log routing)
-  - [x] sflt1_length corrected: D1-D3=304, D1-D6=631, D1-D7=721
-  - [x] Domain boundaries confirmed: D1=5-103, D2=105-198, D3=199-303
-  - [ ] Diagnostic job `diag_VEGFA` (LSF 235865567) -- TMPDIR fix, expect result ~12:50
-  - [ ] If diag passes: regenerate + resubmit all 44 with TMPDIR fix
+- [ ] **AF2 test job running** -- af2_VEGFA (LSF 235867492), reduced_dbs fix, expect ~13:45
+  - [x] Root cause: HHblits BFD titin column mismatch (not /tmp)
+  - [x] Fix: `--db_preset=reduced_dbs` committed (153ec48)
+  - [x] All 44 LSF scripts regenerated on Minerva
+  - [x] Stale d1d3_corrected results backed up
+  - [ ] If test passes: submit remaining 43 jobs (23 d1d3 + 11 d1d6 + 9 d1d7)
 
 ## Next
 
@@ -39,6 +39,7 @@ Updated: 2026-03-21
 - [x] **3-batch job generation**: D1-D3 corrected (24) + D1-D6 (11) + D1-D7 (9) = 44 jobs (2026-03-19)
 - [x] Wrapper path bug fix + regeneration on Minerva (2026-03-19)
 - [x] Phase 0 upstream validation COMPLETE (T0.1-T0.4) (2026-03-20)
+- [x] **AF2 failure diagnosis**: HHblits BFD bug, reduced_dbs fix applied (2026-03-21)
 
 ## Key Results So Far (OLD CONSTRUCT -- will be superseded)
 
@@ -51,4 +52,4 @@ Updated: 2026-03-21
 | Expected false negative | NRP1 | 0.22 | VEGF-bridged ternary; binary screen blind spot |
 | Expected false negative | NRP2 | 0.21 | Same mechanism as NRP1 |
 
-*Scores above used construct 1-338 (includes signal peptide + D4 bleed). Corrected construct (27-330) scores pending -- blocked on AF2 resubmission.*
+*Scores above used construct 1-338 (includes signal peptide + D4 bleed). Corrected construct (27-330) scores pending -- blocked on AF2 test job.*
