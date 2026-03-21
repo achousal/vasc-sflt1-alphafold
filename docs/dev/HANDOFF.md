@@ -1,51 +1,48 @@
 ---
-updated: "2026-03-20T10:30"
+updated: "2026-03-21T12:05"
 project: "vasc-sflt1-alphafold"
 ---
 
 ## What I Was Doing
 
-Two things this session: (1) added ectodomain truncation for transmembrane AF2 partners, (2) ran the T0.4 VEGF-depletion inversion test. Also verified all protein sequences against UniProt and submitted all 44 AF2 jobs.
+Starting Phase 1 analysis. Discovered all 44 AF2 jobs failed silently -- HHblits crashed on chain B MSA search but the wrapper's EXIT trap logged them as "completed". Zero model outputs exist across all 3 batches.
 
 ## Current State
 
-- **All 44 AF2 jobs COMPLETED** on Minerva across 3 batches (d1d3_corrected x24, d1d6 x11, d1d7 x9). All using ectodomain-only sequences for TM proteins.
-- **Phase 0 upstream validation COMPLETE** (T0.1-T0.4 all resolved)
-- **T0.4 result:** 37/38 axon/guidance enrichment terms retained after removing 7 VEGF-pathway genes. Signal is VEGF-independent. Inversion hypothesis not supported.
-- **Ectodomain filter** added to `02_fetch_sequences.py`. 16 TM proteins truncated, 5,447 aa total reduction (23.7%).
-- **All sequences verified** against live UniProt -- 100% match for all 24 candidates.
-- **28/28 tests passing.**
+- **All 44 AF2 jobs FAILED** -- zero `ranking_debug.json`, zero `result_model_*.pkl`. Only chain A (sFLT1) MSAs exist. Chain B HHblits crashed after ~28 min in every job.
+- **Root cause hypothesis:** `/tmp` exhaustion on shared GPU nodes. Multiple AF jobs writing large HHblits temp files to the same node `/tmp`.
+- **Diagnostic job submitted:** `diag_VEGFA` (LSF 235865567) on `lg07c01`, started 11:59. Fix: `TMPDIR` set to project scratch + `--use_precomputed_msas`. Expect result by ~12:50.
+- **Wrapper bug fixed:** EXIT trap now routes to `failed.log` (rc!=0) vs `completed.log` (rc=0).
+- **sflt1_length corrected:** D1-D3=304aa (was 338), D1-D6=631, D1-D7=721. `--construct` flag added to `run_structural.py`.
+- **Domain boundaries confirmed** for PAE slicing (0-indexed in 304-aa FASTA): D1=5-103, D2=105-198, D3=199-303.
 
 ## Next Steps
 
-1. **Phase 1 analysis (UNBLOCKED):**
-   - T1.2: Template bias quantification -- parse AF2 `msas/` for PDB template hits, correlate with ipTM
-   - T1.1: Domain-resolved interface mapping -- per-domain (D1/D2/D3) PAE scores, classify binding modes
-   - T1.3: Alternative scoring (ipSAE, LIS) -- depends on T1.1
-2. **Compare old construct (1-338) vs corrected (27-330) scores** -- quantify signal peptide effect
-3. **Compare D1-D3 vs D1-D6 vs D1-D7 scores** -- construct length effect
-4. **Independent tasks:**
-   - T3.1: M2 surfaceome dual-filter (PRIDE data)
-   - T3.3: Brain PVM/microglia receptor validation (SEA-AD)
-   - T5.2: Negative-direction overlap analysis
-5. **Ask PI:** covariates in GNPC, WASHU, UCSF_AD upstream LMs
+1. **Check diagnostic job** -- `ssh minerva "bjobs 235865567"` then inspect output log
+   - **If SUCCESS:** Regenerate all 44 LSF scripts with TMPDIR fix, resubmit in 3 batches. Build Phase 1 modules against real output structure.
+   - **If FAIL (same HHblits error):** Try `--db_preset=reduced_dbs` (skip BFD, use only UniRef30) as fallback. Smaller search = less /tmp pressure. Or request dedicated GPU node.
+2. **Build Phase 1 modules** (blocked on AF2 results):
+   - `07_template_bias.py` (T1.2) -- PDB template count vs ipTM correlation
+   - `08_domain_resolved.py` (T1.1) -- per-domain PAE submatrices, binding mode classification
+   - `09_alternative_scoring.py` (T1.3) -- ipSAE, LIS metrics
+3. **Tests for Phase 1** -- mock PAE matrices, verify VEGFA->D2 mapping
 
 ## Key Decisions
 
-- Ectodomain-only modeling for TM proteins: `fetch_all_sequences(apply_ectodomain_filter=True)` is now default. Min ectodomain length: 50 aa.
-- T0.4 VEGF-depletion: used broad definition (VEGF ligands + receptors + NRPs + PDGF + FGF + angiopoietins). Only 7 of 25 defined genes were in the consensus list.
-- Phase 0 gate passed: target list is valid for interpretation. Remaining caveat: vascular comorbidity confounding not adjusted in any cohort (documented limitation).
+- Build Phase 1 analysis code only after real AF2 outputs exist (avoid rework from guessing output structure).
+- Diagnostic before batch resubmit (option b) to avoid burning 44 more GPU-hours on systematic failure.
+- TMPDIR to project scratch as primary fix hypothesis for HHblits /tmp exhaustion.
 
 ## Open Questions
 
-- Sex-stratified AF2 interpretation for PLXNA1/PLXNA4 (sFLT1 × Sex interaction p=0.02)?
-- Negative-direction overlap threshold: relax to 3/4 cohorts? (GNPC has only 3 neg proteins)
-- Confirm exact N and covariates with PI for GNPC, WASHU, UCSF_AD
+- Is /tmp exhaustion the actual cause, or is it a BFD database issue?
+- If TMPDIR fix works, should we regenerate all 44 LSF scripts from `03_generate_lsf_jobs.py` (adds TMPDIR globally) or patch the existing scripts?
+- Sex-stratified AF2 interpretation for PLXNA1/PLXNA4 (carried forward)
+- Confirm exact N and covariates with PI for GNPC, WASHU, UCSF_AD (carried forward)
 
 ## Files Modified This Session
 
-- `analysis/03_structural_prediction/02_fetch_sequences.py` -- ProteinTopology, ectodomain truncation
-- `analysis/03_structural_prediction/test_structural.py` -- TestProteinTopology
-- `analysis/02_pathway_enrichment/run_vegf_depletion.R` -- NEW: T0.4 inversion test
-- `docs/dev/STATUS.md` -- T0.4 marked complete
-- `docs/dev/HANDOFF.md` -- this file
+- `analysis/03_structural_prediction/03_generate_lsf_jobs.py` -- wrapper EXIT trap fix (failed.log routing)
+- `analysis/03_structural_prediction/04_parse_results.py` -- sflt1_length default 338->304
+- `analysis/03_structural_prediction/run_structural.py` -- `--construct` flag, construct-aware sflt1_length
+- `results/.../d1d3_corrected/jobs/diag_VEGFA.lsf` -- NEW: diagnostic job (gitignored)
