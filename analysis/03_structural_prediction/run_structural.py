@@ -34,6 +34,7 @@ _mod02 = importlib.import_module("02_fetch_sequences")
 _mod03 = importlib.import_module("03_generate_lsf_jobs")
 _mod04 = importlib.import_module("04_parse_results")
 _mod05 = importlib.import_module("05_plot_results")
+_mod06 = importlib.import_module("06_render_structures")
 
 select_candidates = _mod01.select_candidates
 fetch_all_sequences = _mod02.fetch_all_sequences
@@ -44,6 +45,7 @@ generate_summary_table = _mod05.generate_summary_table
 plot_iptm_barplot = _mod05.plot_iptm_barplot
 plot_pae_heatmap = _mod05.plot_pae_heatmap
 load_pae_matrix = _mod04.load_pae_matrix
+render_all = _mod06.render_all
 
 
 def main():
@@ -52,7 +54,7 @@ def main():
     )
     parser.add_argument(
         "--step",
-        choices=["select", "fetch", "generate", "parse", "plot", "all"],
+        choices=["select", "fetch", "generate", "parse", "plot", "render", "all"],
         default="all",
         help="Which pipeline step to run (default: all = select+fetch+generate)",
     )
@@ -216,6 +218,25 @@ def main():
             plot_iptm_barplot(scores, results_dir / f"step03_iptm_barplot_{args.construct}.pdf")
             generate_summary_table(scores, results_dir / "step03_summary_table.csv")
             generate_stats_report(scores, candidates, results_dir / "step03_stats_report.txt")
+
+        elif step == "render":
+            logger.info("=== Step 3f: Rendering structures ===")
+            if not candidates_path.exists():
+                logger.error("Run --step select first")
+                sys.exit(1)
+
+            if not af_dir.exists():
+                logger.error("AlphaFold output directory not found: %s", af_dir)
+                sys.exit(1)
+
+            render_dir = results_dir / "renders"
+            summary = render_all(
+                candidates_path, af_dir, render_dir,
+                sflt1_length=sflt1_length,
+            )
+            summary.to_csv(render_dir / "render_summary.csv", index=False)
+            n_ok = (summary["status"] == "ok").sum()
+            logger.info("Rendered %d/%d targets to %s", n_ok, len(summary), render_dir)
 
             import json
             parsed = scores[scores["n_models_parsed"] > 0]
