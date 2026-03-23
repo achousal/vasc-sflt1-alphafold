@@ -168,6 +168,8 @@ class ProteinTopology:
     seq_length: int
     signal_peptide: tuple[int, int] | None  # (start, end) 1-indexed
     transmembrane: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    chain: tuple[int, int] | None = None  # (start, end) from UniProt Chain feature
+    gpi_anchor: int | None = None  # residue number of GPI-anchor site
     protein_type: str = "soluble"  # soluble, type_i_tm, multi_tm, gpi_anchored
 
     @property
@@ -255,6 +257,12 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
 
     signal_peptide = None
     transmembrane = []
+    chain = None
+    gpi_anchor = None
+
+    # Check keywords for GPI-anchor
+    keywords = {kw.get("name", "") for kw in data.get("keywords", [])}
+    is_gpi = "GPI-anchor" in keywords
 
     for feat in features:
         ftype = feat.get("type", "")
@@ -269,12 +277,19 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
             signal_peptide = (start, end)
         elif ftype == "Transmembrane":
             transmembrane.append((start, end))
+        elif ftype == "Chain" and chain is None:
+            # First Chain entry = primary mature protein
+            chain = (start, end)
+        elif ftype == "Lipidation" and "GPI" in feat.get("description", ""):
+            gpi_anchor = start
 
     # Classify protein type
     if len(transmembrane) > 1:
         protein_type = "multi_tm"
     elif len(transmembrane) == 1:
         protein_type = "type_i_tm"
+    elif is_gpi:
+        protein_type = "gpi_anchored"
     else:
         protein_type = "soluble"
 
@@ -283,6 +298,8 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
         seq_length=seq_length,
         signal_peptide=signal_peptide,
         transmembrane=tuple(transmembrane),
+        chain=chain,
+        gpi_anchor=gpi_anchor,
         protein_type=protein_type,
     )
 
@@ -517,6 +534,32 @@ def fetch_all_sequences(
                     )
             elif topo is not None:
                 topology_type = topo.protein_type
+                # GPI-anchored proteins: use Chain boundaries (excludes
+                # signal peptide and GPI-signal tail)
+                if topo.protein_type == "gpi_anchored" and topo.chain is not None:
+                    partner_seq = trim_sequence(
+                        full_seq, topo.chain[0], topo.chain[1]
+                    )
+                    partner_region = (
+                        f"mature_{topo.chain[0]}-{topo.chain[1]}"
+                    )
+                    logger.info(
+                        "  %s: GPI-anchored, using Chain %d-%d (%d aa, "
+                        "trimmed from %d aa)",
+                        target, topo.chain[0], topo.chain[1],
+                        len(partner_seq), len(full_seq),
+                    )
+                # Soluble/secreted proteins: remove signal peptide if present
+                elif topo.signal_peptide is not None:
+                    mature_start = topo.signal_peptide[1] + 1
+                    partner_seq = trim_sequence(full_seq, mature_start, len(full_seq))
+                    partner_region = f"mature_{mature_start}-{len(full_seq)}"
+                    logger.info(
+                        "  %s: soluble, signal peptide 1-%d removed, "
+                        "mature protein %d-%d (%d aa)",
+                        target, topo.signal_peptide[1],
+                        mature_start, len(full_seq), len(partner_seq),
+                    )
 
         safe_name = target.replace("/", "-").replace(" ", "_").replace(":", "_")
         fasta_path = fasta_dir / f"sflt1_vs_{safe_name}.fasta"

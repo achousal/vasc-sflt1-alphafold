@@ -1,18 +1,22 @@
 # SFLT1_VEGF
 
-## Overview
+sFLT1/VEGF interaction screen: SomaScan proteomics cross-cohort overlap -> pathway enrichment -> AlphaFold multimer structural prediction.
 
-sFLT1 (soluble VEGF receptor 1) is a decoy receptor that captures VEGFA and blocks angiogenesis. This project tests whether a similar decoy-receptor mechanism applies to axonogenesis: sFLT1 may sequester ligands needed for axonal guidance proteins (semaphorins, neuropilins, NRP1/NRP2), preventing downstream signaling.
+## Development Workflow (MANDATORY)
 
-The project identifies proteins significantly associated with sFLT1 across multiple cohorts using SomaScan proteomics, then screens candidate interactors for structural plausibility using AlphaFold and crystal structure prediction.
+**Code is local-led. All code edits happen locally, never on Minerva.**
 
-## Scientific Question
+| Operation | Where | How |
+|-----------|-------|-----|
+| Edit code, configs, docs, tests | **Local** (`~/projects/Elahi_Lab/vasc-sflt1-alphafold/`) | Edit directly |
+| Deploy to HPC | Local then Minerva | `git push` locally, `ssh minerva "cd /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold && git pull"` |
+| Inspect data, submit jobs, check results | **Minerva** | `ssh minerva "<cmd>"` |
 
-Which proteins are mechanistically connected to sFLT1 in a way that inhibits axonogenesis-related downstream signaling, and can structural prediction methods validate these interactions?
+**Violations:** Editing any file on Minerva via `ssh minerva` that is tracked in git (code, docs, configs, tests) is a workflow violation. If you catch yourself about to do this, stop and edit locally instead.
 
 ## Data
 
-All data is SomaScan proteomics. Linear models regressed each protein on sFLT1 levels (two somamers: VEGFsR1 and VEGFsR1.1). Results are pre-computed and stored as significant positive/negative association tables.
+All data is SomaScan proteomics. Linear models regressed each protein on sFLT1 levels (two somamers: VEGFsR1 and VEGFsR1.1). Results are pre-computed.
 
 ### Cohorts
 
@@ -57,37 +61,50 @@ All data is SomaScan proteomics. Linear models regressed each protein on sFLT1 l
 
 ## Analysis Pipeline
 
-### Step 1: Cross-cohort overlap (R)
-- `analysis/01_cross_cohort_overlap/`
-- Identify proteins replicated across discovery (MarkVCID, UCSF_AD) and validation (GNPC, WASHU) cohorts
-- Stratify by somamer (VEGFsR1 vs VEGFsR1.1) and direction (pos/neg)
-- Generate UpSet plots, Venn diagrams, and ranked consensus lists
-- Output: consensus protein lists for downstream analysis
-
-### Step 2: Pathway enrichment (R)
-- `analysis/02_pathway_enrichment/`
-- GO, KEGG, Reactome enrichment on consensus protein sets
-- Separate enrichment for positive vs negative associations
-- Focus on axon guidance, semaphorin signaling, neuropilin pathways
-- Output: enrichment tables and dot plots
-
-### Step 3: Structural prediction (Python)
-- `analysis/03_structural_prediction/`
-- AlphaFold multimer prediction for sFLT1 + top candidate proteins
-- Evaluate predicted alignment error (PAE) and interface confidence (ipTM)
-- Compare with existing crystal structures where available
-- Output: interaction scores, PAE plots, structural models
-
-## Languages
-
-- **R**: Steps 1-2 (data wrangling, overlap analysis, pathway enrichment, plotting)
-- **Python**: Step 3 (AlphaFold API, structural bioinformatics)
+| Step | Dir | Language | Output |
+|------|-----|----------|--------|
+| 1. Cross-cohort overlap | `analysis/01_cross_cohort_overlap/` | R | Consensus protein lists |
+| 2. Pathway enrichment | `analysis/02_pathway_enrichment/` | R | Enrichment tables, dot plots |
+| 3. Structural prediction | `analysis/03_structural_prediction/` | Python | Interaction scores, PAE plots, models |
 
 ## HPC
 
-- Cluster: Minerva (Mount Sinai)
-- Scheduler: LSF
+- Cluster: Minerva (Mount Sinai), Scheduler: LSF
 - AlphaFold jobs require GPU nodes
+- Memory: mem=32000 (128 GB) for large partners (>500 aa); mem=16000 may suffice for <500 aa
+
+## AlphaFold Guardrails
+
+### Protein localization filter (mandatory before modeling)
+
+sFLT1 is soluble/extracellular. AlphaFold predicts interfaces regardless of co-localization. Filter candidates:
+
+| Protein Type | AlphaFold Input | Action |
+|-------------|-----------------|--------|
+| Soluble / secreted | Full-length sequence | Model as-is |
+| Transmembrane | Extracellular domain only | Truncate; extract boundaries from UniProt topology; exclude signal peptides; flag if ectodomain <50 aa |
+| GPI-anchored | Full ectodomain | Model ectodomain; note surface constraint |
+| Nuclear / cytoplasmic | Flag, do not prioritize | High ipTM does NOT mean biological interaction |
+
+Annotation sources: UniProt subcellular location, GO cellular component (GO:0005576, GO:0016021, GO:0005634), Human Protein Atlas.
+
+### PAE thresholding
+
+No single global PAE threshold works. Calibrate using known sFLT1 partners (VEGFA, PlGF) as positive controls and known non-interactors as negatives. PAE varies by protein size, domain flexibility, and structural class.
+
+### Template bias
+
+High PAE confidence may reflect PDB template abundance for sFLT1 Ig-like domains, not genuine binding. Correlate PAE scores with template sequence identity. Asymmetric template coverage (well-templated sFLT1 vs poorly-templated partner) can generate artificially low PAE.
+
+### Binary screen blind spots
+
+VEGF-bridged co-receptor interactions (NRP1, NRP2) are invisible to binary predictions. Strong hits (ipTM >0.5) are likely direct binary interactors only.
+
+## Upstream Constraints
+
+- **Batch effects**: ComBat-seq harmonization required before cross-cohort testing. Can alter rankings by artifact.
+- **Comorbidity confounding**: sFLT1 associations may reflect shared vascular risk, not direct mechanism.
+- **Multiple testing**: BH-FDR at alpha 0.05 for all candidate screens.
 
 ## How to run
 
@@ -104,13 +121,11 @@ bsub < analysis/03_structural_prediction/submit_alphafold.lsf
 
 ## How to test
 
-Tests live alongside analysis code in each step directory.
-
 ```bash
-# R tests (per step)
+# R tests
 Rscript -e "testthat::test_file('analysis/01_cross_cohort_overlap/test_overlap.R')"
 Rscript -e "testthat::test_file('analysis/02_pathway_enrichment/test_enrichment.R')"
 
-# Python tests (per step)
+# Python tests
 pytest analysis/03_structural_prediction/ -v
 ```
