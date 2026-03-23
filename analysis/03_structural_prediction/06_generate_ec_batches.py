@@ -273,7 +273,7 @@ def main():
 
     # Batch A: D1-D3 corrected -- all 24 targets
     summaries.append(generate_batch(
-        batch_name="d1d3_corrected",
+        batch_name="d1d3",
         construct=CONSTRUCT_D1D3,
         targets=ALL_24_TARGETS,
         source_candidates_csv=source_csv,
@@ -329,7 +329,7 @@ def main():
     logger.info("Next steps:")
     logger.info("  1. git add + commit + push")
     logger.info("  2. ssh minerva 'cd <project> && git pull'")
-    logger.info("  3. Submit batch A first (priority): bash results/03_structural_prediction/d1d3_corrected/jobs/submit_all.sh")
+    logger.info("  3. Submit batch A first (priority): bash results/03_structural_prediction/d1d3/jobs/submit_all.sh")
     logger.info("  4. Submit batch B: bash results/03_structural_prediction/d1d6/jobs/submit_all.sh")
     logger.info("  5. Submit batch C (deprioritized): bash results/03_structural_prediction/d1d7/jobs/submit_all.sh")
 

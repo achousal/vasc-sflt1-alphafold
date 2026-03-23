@@ -239,9 +239,9 @@ FASTA header format:
 [sequence]
 ```
 
-Note: `fasta/` directory contains the original (uncorrected) construct with header `residues_1-338` (338 aa, includes signal peptide). The corrected FASTA files with `residues_27-330` (304 aa) are in `d1d3_corrected/fasta/`.
+Note: `fasta/` directory contains the original (uncorrected) construct with header `residues_1-338` (338 aa, includes signal peptide). The corrected FASTA files with `residues_27-330` (304 aa) are in `d1d3/fasta/`.
 
-### FASTA inventory (d1d3_corrected)
+### FASTA inventory (d1d3)
 
 Cross-reference: candidates CSV UniProt → FASTA header UniProt → sequence lengths → batch_summary.json totals. All 24 match.
 
@@ -281,7 +281,7 @@ Cross-reference: candidates CSV UniProt → FASTA header UniProt → sequence le
 
 ### Uncorrected vs corrected FASTA comparison
 
-| | `fasta/` (root, stale) | `d1d3_corrected/fasta/` (active) |
+| | `fasta/` (root, stale) | `d1d3/fasta/` (active) |
 |---|---|---|
 | sFLT1 header | `residues_1-338` | `residues_27-330` |
 | sFLT1 length | 338 aa | 304 aa |
@@ -296,7 +296,7 @@ Cross-reference: candidates CSV UniProt → FASTA header UniProt → sequence le
 
 **AF2 command (decoded from LSF base64):**
 ```bash
-cd "/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3_corrected"
+cd "/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3"
 module purge
 module load alphafold/2.3.2-singularity
 
@@ -355,7 +355,7 @@ singularity run --nv \
 
 | Batch | sFLT1 construct | Targets | Job scripts | Walltime range | HPC root |
 |-------|----------------|---------|-------------|----------------|----------|
-| `d1d3_corrected` | D1-D3 (27-330) | 24 | 24 | 48-144h | `/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3_corrected` |
+| `d1d3` | D1-D3 (27-330) | 24 | 24 | 48-144h | `/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3` |
 | `d1d6` | D1-D6 (27-657) | 11 | 11 | 24h (all) | same pattern |
 | `d1d7` | D1-D7 (27-747) | 9 | 9 | 24h (all) | same pattern |
 
@@ -389,9 +389,9 @@ singularity run --nv \
 | BASI | 721 | 302 | 1,023 |
 | SLIK4 | 721 | 600 | 1,321 |
 
-Note: d1d6 and d1d7 are subsets of the d1d3_corrected targets. d1d6 drops 13 targets (all large ectodomain proteins). d1d7 drops PCDH9 and SLIT2 further. Target sequences are identical across batches -- only the sFLT1 chain changes. All d1d6/d1d7 walltimes are set to 24h in the manifest (may need adjustment for SLIT2 at 2,160 total residues).
+Note: d1d6 and d1d7 are subsets of the d1d3 targets. d1d6 drops 13 targets (all large ectodomain proteins). d1d7 drops PCDH9 and SLIT2 further. Target sequences are identical across batches -- only the sFLT1 chain changes. All d1d6/d1d7 walltimes are set to 24h in the manifest (may need adjustment for SLIT2 at 2,160 total residues).
 
-**Walltime scaling (d1d3_corrected, total residues = sFLT1 304aa + target):**
+**Walltime scaling (d1d3, total residues = sFLT1 304aa + target):**
 
 | Residues | Walltime | Example targets |
 |----------|----------|----------------|
@@ -416,7 +416,7 @@ Note: d1d6 and d1d7 are subsets of the d1d3_corrected targets. d1d6 drops 13 tar
 ```
 /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/
 └── results/03_structural_prediction/
-    ├── d1d3_corrected/
+    ├── d1d3/
     │   ├── fasta/                    # 24 corrected two-chain FASTA files
     │   │   └── sflt1_vs_{TARGET}.fasta
     │   ├── jobs/                     # 24 LSF scripts + orchestration
@@ -478,14 +478,14 @@ n_interface_residues,interface_plddt,interaction_call,n_models_parsed
 | `data/GNPC/`, `data/WASHU/` | Same model? Same significance thresholds? |
 | Annotation CSVs (all 4 cohorts) | Column name differences between cohorts -- does the overlap code handle them? |
 | `step01_consensus_proteins_pos.csv` | Tier assignment logic correct; annotation join rate (99.1% -- what about the 0.9%?) |
-| `d1d3_corrected/fasta/sflt1_vs_*.fasta` | All headers say `residues_27-330` (not `residues_1-338`) |
+| `d1d3/fasta/sflt1_vs_*.fasta` | All headers say `residues_27-330` (not `residues_1-338`) |
 | `step03_candidates.csv` | All 24 targets present with correct UniProt accessions |
 
 ### Interpretation-critical (errors bias results)
 
 | File | What to verify |
 |------|---------------|
-| `fasta/` (root level) | Contains uncorrected construct (`residues_1-338`). Must NOT feed d1d3_corrected parsing. |
+| `fasta/` (root level) | Contains uncorrected construct (`residues_1-338`). Must NOT feed d1d3 parsing. |
 | `step02_enrichment_*.csv` | Gene universe definition. What background set was used for ORA? |
 | AF2 scoring thresholds | ipTM/PAE cutoffs should be calibrated against VEGFA positive control, not hardcoded |
 | `--db_preset=reduced_dbs` | Accepted trade-off for HHblits BFD bug. Quality margin documented? |
@@ -501,7 +501,7 @@ n_interface_residues,interface_plddt,interaction_call,n_models_parsed
 
 ### Target signal peptide audit
 
-The sFLT1 signal peptide was corrected (338→304 aa) in `d1d3_corrected/`. But 5 of the 10 "full-length" targets still include their signal peptides. The 14 ectodomain-extracted targets are correct -- their start residues match UniProt signal peptide boundaries (e.g., APLP1 ectodomain starts at 39, signal ends at 38).
+The sFLT1 signal peptide was corrected (338→304 aa) in `d1d3/`. But 5 of the 10 "full-length" targets still include their signal peptides. The 14 ectodomain-extracted targets are correct -- their start residues match UniProt signal peptide boundaries (e.g., APLP1 ectodomain starts at 39, signal ends at 38).
 
 | Target | UniProt | Signal peptide | In FASTA? | Extra residues | Notes |
 |--------|---------|---------------|-----------|---------------|-------|
@@ -516,7 +516,7 @@ The sFLT1 signal peptide was corrected (338→304 aa) in `d1d3_corrected/`. But 
 
 **Impact:** Signal peptides are cleaved during maturation and never present on the functional protein. AF2 will likely predict them as disordered, adding noise to the PAE matrix (inflating mean inter-chain PAE) without strongly affecting interface predictions. Contactin-5 has the largest effect (+46 residues, 4.2% of its sequence).
 
-**Affected batches:** Same target sequences are used across d1d3_corrected, d1d6, and d1d7 -- the issue propagates to all three constructs.
+**Affected batches:** Same target sequences are used across d1d3, d1d6, and d1d7 -- the issue propagates to all three constructs.
 
 **Corrective action:** Regenerate FASTA for SEMA3A (21-771), FSTL4 (23-842), NOE1 (17-485), SLIT2 (31-1529), and Contactin-5 (19-1072). Requires re-running AF2 for these 5 targets per construct.
 

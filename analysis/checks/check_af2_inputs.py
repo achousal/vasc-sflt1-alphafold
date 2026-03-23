@@ -25,7 +25,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results" / "03_structural_prediction"
 
-BATCHES = ["d1d3_corrected", "d1d6", "d1d7"]
+BATCHES = ["d1d3", "d1d6", "d1d7"]
 
 # Expected AF2 settings
 EXPECTED_FLAGS = {

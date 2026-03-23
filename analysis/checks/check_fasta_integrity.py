@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_fasta_integrity.py -- Verify FASTA files match expected sequences and lengths.
 
-For each batch (d1d3_corrected, d1d6, d1d7):
+For each batch (d1d3, d1d6, d1d7):
   1. sFLT1 chain has correct length (304/631/721 aa) and no signal peptide
   2. Target chain lengths match batch_summary.json total_residues - construct_length
   3. No signal peptide residues in target chains (cross-ref UniProt Chain boundaries)
@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results" / "03_structural_prediction"
 
 CONSTRUCTS = {
-    "d1d3_corrected": {"start": 27, "end": 330, "length": 304},
+    "d1d3": {"start": 27, "end": 330, "length": 304},
     "d1d6": {"start": 27, "end": 657, "length": 631},
     "d1d7": {"start": 27, "end": 747, "length": 721},
 }

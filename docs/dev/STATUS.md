@@ -8,7 +8,7 @@ Updated: 2026-03-21
   - [x] Root cause: HHblits BFD titin column mismatch (not /tmp)
   - [x] Fix: `--db_preset=reduced_dbs` committed (153ec48)
   - [x] All 44 LSF scripts regenerated on Minerva
-  - [x] Stale d1d3_corrected results backed up
+  - [x] Stale d1d3 results backed up
   - [ ] If test passes: submit remaining 43 jobs (23 d1d3 + 11 d1d6 + 9 d1d7)
 
 ## Next

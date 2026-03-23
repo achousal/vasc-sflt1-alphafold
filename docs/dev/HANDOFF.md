@@ -13,7 +13,7 @@ Material balance audit of the full pipeline (LR → overlap → enrichment → A
 - **Signal peptide bug found and fixed** in `02_fetch_sequences.py`. The ectodomain filter only activated for transmembrane proteins. Secreted proteins with signal peptides (but no TM domain) got full-length sequences including their signal peptides. Same class of error previously corrected for sFLT1.
 - **5 targets affected:** SEMA3A (-20 aa), Contactin-5 (-46 aa, signal + GPI tail), FSTL4 (-22 aa), NOE1 (-16 aa), SLIT2 (-30 aa).
 - **Code fix:** Added `chain`, `gpi_anchor` fields to `ProteinTopology`. GPI-anchored proteins now use UniProt Chain boundaries. Soluble proteins with signal peptides get signal peptide trimmed.
-- **All FASTA files regenerated** across d1d3_corrected (24), d1d6 (11), d1d7 (9).
+- **All FASTA files regenerated** across d1d3 (24), d1d6 (11), d1d7 (9).
 - **All 44 LSF jobs regenerated** via `06_generate_ec_batches.py` with correct per-target walltimes. Walltimes stayed in same bins (deltas too small to cross thresholds).
 - **19 previously-correct targets verified unchanged** (14 ectodomain-extracted + 3 legitimately full-length: VEGFA, STMN3, Calcineurin B a).
 
@@ -44,6 +44,6 @@ Material balance audit of the full pipeline (LR → overlap → enrichment → A
 
 - `analysis/03_structural_prediction/02_fetch_sequences.py` -- signal peptide fix for soluble + GPI-anchored proteins
 - `docs/dev/material-balance.md` -- new file, full pipeline material balance
-- `results/03_structural_prediction/d1d3_corrected/` -- regenerated FASTA + LSF jobs
+- `results/03_structural_prediction/d1d3/` -- regenerated FASTA + LSF jobs
 - `results/03_structural_prediction/d1d6/` -- regenerated FASTA + LSF jobs
 - `results/03_structural_prediction/d1d7/` -- regenerated FASTA + LSF jobs

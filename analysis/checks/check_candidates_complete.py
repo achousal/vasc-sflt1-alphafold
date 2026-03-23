@@ -29,7 +29,7 @@ EC_TARGETS = {
 D1D7_SKIP = {"PCDH9", "SLIT2"}
 
 BATCH_EXPECTED_TARGETS = {
-    "d1d3_corrected": None,  # all 24
+    "d1d3": None,  # all 24
     "d1d6": EC_TARGETS,
     "d1d7": EC_TARGETS - D1D7_SKIP,
 }
