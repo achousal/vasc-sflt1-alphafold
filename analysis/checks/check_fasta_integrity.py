@@ -344,17 +344,6 @@ def main():
                 f"{region:<28s} {trim_type}"
             )
 
-    # Also check root fasta/ for stale artifacts
-    print("\n  Stale artifact check (root fasta/):")
-    root_fasta = RESULTS_DIR / "fasta"
-    if root_fasta.exists():
-        for f in sorted(root_fasta.glob("sflt1_vs_*.fasta")):
-            entries = parse_fasta(f)
-            if entries:
-                sflt1_hdr = entries[0][0]
-                if "residues_1-338" in sflt1_hdr:
-                    print(f"    WARN: {f.name} has stale construct (residues_1-338)")
-
     # Summary
     print("\n" + "=" * 60)
     if all_failures:

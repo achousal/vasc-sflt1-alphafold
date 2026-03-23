@@ -239,8 +239,6 @@ FASTA header format:
 [sequence]
 ```
 
-Note: `fasta/` directory contains the original (uncorrected) construct with header `residues_1-338` (338 aa, includes signal peptide). The corrected FASTA files with `residues_27-330` (304 aa) are in `d1d3/fasta/`.
-
 ### FASTA inventory (d1d3)
 
 Cross-reference: candidates CSV UniProt → FASTA header UniProt → sequence lengths → batch_summary.json totals. All 24 match.
@@ -279,15 +277,6 @@ Cross-reference: candidates CSV UniProt → FASTA header UniProt → sequence le
 - 10/24 targets use full-length sequence (soluble/secreted)
 - Uncorrected `fasta/` root directory has sFLT1 = 338 aa (wrong, includes signal peptide)
 
-### Uncorrected vs corrected FASTA comparison
-
-| | `fasta/` (root, stale) | `d1d3/fasta/` (active) |
-|---|---|---|
-| sFLT1 header | `residues_1-338` | `residues_27-330` |
-| sFLT1 length | 338 aa | 304 aa |
-| Signal peptide | Included (residues 1-26) | Removed |
-| Status | **Do not use** | Active input to AF2 |
-
 ### Step 3c: LSF Job Generation
 
 **Input:** FASTA files + HPC parameters.
@@ -321,7 +310,6 @@ singularity run --nv \
     --db_preset=reduced_dbs \
     --max_template_date=2024-01-01 \
     --num_multimer_predictions_per_model=5 \
-    --run_relax=false \
     --use_precomputed_msas
 ```
 
@@ -485,7 +473,6 @@ n_interface_residues,interface_plddt,interaction_call,n_models_parsed
 
 | File | What to verify |
 |------|---------------|
-| `fasta/` (root level) | Contains uncorrected construct (`residues_1-338`). Must NOT feed d1d3 parsing. |
 | `step02_enrichment_*.csv` | Gene universe definition. What background set was used for ORA? |
 | AF2 scoring thresholds | ipTM/PAE cutoffs should be calibrated against VEGFA positive control, not hardcoded |
 | `--db_preset=reduced_dbs` | Accepted trade-off for HHblits BFD bug. Quality margin documented? |
@@ -524,8 +511,6 @@ The sFLT1 signal peptide was corrected (338→304 aa) in `d1d3/`. But 5 of the 1
 
 | Hazard | Status | Location |
 |--------|--------|----------|
-| Stale uncorrected FASTA (sFLT1 signal peptide) | Present in `fasta/` root | `results/03_structural_prediction/fasta/` |
-| Target signal peptides in 5/24 FASTA files | Unresolved | SEMA3A, FSTL4, NOE1, SLIT2, Contactin-5 across all 3 constructs |
 | Age adjustment asymmetry | Unresolved | MarkVCID/GNPC: no age adj; UCSF_AD/WASHU: age adj |
-| HHblits BFD titin crash | Fixed | All jobs regenerated with `--db_preset=reduced_dbs` |
+| HHblits BFD titin crash | Fixed | `--db_preset=reduced_dbs` |
 | NRP1/NRP2 binary screen blind spot | Documented | VEGF-bridged co-receptor interactions invisible to AF2 binary multimer |

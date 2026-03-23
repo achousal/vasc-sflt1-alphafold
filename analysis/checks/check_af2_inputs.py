@@ -143,7 +143,7 @@ def check_batch(batch_name: str, check_hpc: bool) -> list[str]:
         if hpc_root:
             hpc_roots.add(hpc_root)
 
-        # Check FASTA path points into fasta/ subdir (not root fasta/)
+        # Check FASTA path points into fasta/ subdir
         if fasta_rel and "fasta/sflt1_vs_" not in fasta_rel:
             failures.append(
                 f"{batch_name}/{target}: FASTA path doesn't match expected pattern: {fasta_rel}"
