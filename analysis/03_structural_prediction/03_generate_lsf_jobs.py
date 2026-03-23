@@ -132,7 +132,6 @@ def _build_af_command(
         "    --db_preset=reduced_dbs \\",
         "    --max_template_date=2024-01-01 \\",
         "    --num_multimer_predictions_per_model=5 \\",
-        "    --run_relax=false \\",
         "    --use_precomputed_msas",
         "",
         "# Validate AF2 output -- singularity can return rc=0 despite internal Python errors",

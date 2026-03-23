@@ -33,7 +33,6 @@ EXPECTED_FLAGS = {
     "db_preset": "reduced_dbs",
     "max_template_date": "2024-01-01",
     "num_multimer_predictions_per_model": "5",
-    "run_relax": "false",
 }
 
 # Expected databases (container paths)
