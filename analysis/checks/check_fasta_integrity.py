@@ -22,9 +22,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 RESULTS_DIR = PROJECT_ROOT / "results" / "03_structural_prediction"
 
 CONSTRUCTS = {
-    "d1d3": {"start": 27, "end": 330, "length": 304},
-    "d1d6": {"start": 27, "end": 657, "length": 631},
-    "d1d7": {"start": 27, "end": 747, "length": 721},
+    "d1d3": {"name": "D1-D3", "start": 27, "end": 330, "length": 304},
+    "d1d6": {"name": "D1-D6", "start": 27, "end": 657, "length": 631},
+    "d1d7": {"name": "D1-D7", "start": 27, "end": 747, "length": 721},
 }
 
 # Known signal peptide boundaries (from UniProt, verified 2026-03-22)
@@ -288,6 +288,61 @@ def main():
             uniprot_cache=uniprot_cache,
         )
         all_failures.extend(failures)
+
+    # Bait-target inventory
+    print("\n" + "=" * 60)
+    print("Bait-Target Inventory")
+    print("=" * 60)
+
+    for batch_name, construct in CONSTRUCTS.items():
+        fasta_dir = RESULTS_DIR / batch_name / "fasta"
+        if not fasta_dir.exists():
+            continue
+
+        fasta_files = sorted(fasta_dir.glob("sflt1_vs_*.fasta"))
+        if not fasta_files:
+            continue
+
+        bait_label = (
+            f"sFLT1 {construct['name']} "
+            f"(residues {construct['start']}-{construct['end']}, "
+            f"{construct['length']} aa)"
+        )
+        print(f"\n  {batch_name} -- Bait: {bait_label}")
+        print(f"  {'Target':<28s} {'UniProt':<10s} {'Length':>6s}  {'Region':<28s} {'Type'}")
+        print(f"  {'-'*28} {'-'*10} {'-'*6}  {'-'*28} {'-'*15}")
+
+        for fasta_path in fasta_files:
+            entries = parse_fasta(fasta_path)
+            if len(entries) != 2:
+                continue
+
+            target_header = entries[1][0]
+            target_seq = entries[1][1]
+            parts = target_header.split("|")
+            name = parts[0].strip() if parts else "?"
+            uniprot = parts[1].strip() if len(parts) > 1 else "?"
+            region = parts[2].strip() if len(parts) > 2 else "full-length"
+
+            # Classify trimming type
+            if "ectodomain" in region:
+                trim_type = "TM -> ectodomain"
+            elif "mature" in region:
+                if uniprot in SIGNAL_PEPTIDES and SIGNAL_PEPTIDES[uniprot].get("chain_end"):
+                    trim_type = "GPI-anchored"
+                else:
+                    trim_type = "signal removed"
+            else:
+                # Check if it's a cytoplasmic protein (no signal, no TM)
+                if uniprot in SIGNAL_PEPTIDES:
+                    trim_type = "WARN: no trim?"
+                else:
+                    trim_type = "full-length"
+
+            print(
+                f"  {name:<28s} {uniprot:<10s} {len(target_seq):>6d}  "
+                f"{region:<28s} {trim_type}"
+            )
 
     # Also check root fasta/ for stale artifacts
     print("\n  Stale artifact check (root fasta/):")
