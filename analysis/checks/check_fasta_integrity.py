@@ -6,12 +6,16 @@ For each batch (d1d3_corrected, d1d6, d1d7):
   2. Target chain lengths match batch_summary.json total_residues - construct_length
   3. No signal peptide residues in target chains (cross-ref UniProt Chain boundaries)
   4. Headers have correct residue range annotations
+  5. (--verify-sequences) Both chains match UniProt sequences at the expected residue range
 
 Run: python analysis/checks/check_fasta_integrity.py
+      python analysis/checks/check_fasta_integrity.py --verify-sequences
 """
 
+import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -32,6 +36,69 @@ SIGNAL_PEPTIDES = {
     "Q99784": {"name": "NOE1", "signal_end": 16, "mature_start": 17},
     "O94813": {"name": "SLIT2", "signal_end": 30, "mature_start": 31},
 }
+
+
+def fetch_uniprot_sequence(accession: str) -> str | None:
+    """Fetch full protein sequence from UniProt. Returns None on failure."""
+    import urllib.request
+    import urllib.error
+
+    url = f"https://rest.uniprot.org/uniprotkb/{accession}.fasta"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            lines = resp.read().decode().strip().split("\n")
+            return "".join(l.strip() for l in lines if not l.startswith(">"))
+    except (urllib.error.URLError, TimeoutError):
+        return None
+
+
+def verify_sequence_against_uniprot(
+    fasta_seq: str,
+    uniprot_accession: str,
+    region_tag: str,
+    uniprot_cache: dict,
+) -> str | None:
+    """Check that a FASTA sequence matches the expected UniProt residue range.
+
+    Returns an error message string, or None if OK.
+    """
+    if uniprot_accession not in uniprot_cache:
+        seq = fetch_uniprot_sequence(uniprot_accession)
+        time.sleep(0.3)
+        uniprot_cache[uniprot_accession] = seq
+
+    full_seq = uniprot_cache[uniprot_accession]
+    if full_seq is None:
+        return f"could not fetch UniProt {uniprot_accession}"
+
+    # Parse region tag to get expected start-end
+    # Formats: "residues_27-330", "ectodomain_22-856", "mature_21-771", or empty (full-length)
+    if not region_tag:
+        expected = full_seq
+    else:
+        try:
+            range_part = region_tag.split("_", 1)[1]
+            start = int(range_part.split("-")[0])
+            end = int(range_part.split("-")[1])
+            expected = full_seq[start - 1 : end]
+        except (IndexError, ValueError):
+            return f"cannot parse region tag '{region_tag}'"
+
+    if fasta_seq != expected:
+        # Find where they differ
+        if len(fasta_seq) != len(expected):
+            return (
+                f"length mismatch: FASTA {len(fasta_seq)} aa vs "
+                f"UniProt {uniprot_accession} {len(expected)} aa"
+            )
+        for i, (a, b) in enumerate(zip(fasta_seq, expected)):
+            if a != b:
+                return (
+                    f"sequence mismatch at position {i+1}: "
+                    f"FASTA '{a}' vs UniProt '{b}' ({uniprot_accession})"
+                )
+
+    return None
 
 
 def parse_fasta(path: Path) -> list[tuple[str, str]]:
@@ -55,9 +122,13 @@ def parse_fasta(path: Path) -> list[tuple[str, str]]:
     return entries
 
 
-def check_batch(batch_name: str, construct: dict) -> list[str]:
+def check_batch(
+    batch_name: str, construct: dict, verify_sequences: bool = False, uniprot_cache: dict | None = None,
+) -> list[str]:
     """Check all FASTA files in one batch. Returns list of failure messages."""
     failures = []
+    if uniprot_cache is None:
+        uniprot_cache = {}
     batch_dir = RESULTS_DIR / batch_name
     fasta_dir = batch_dir / "fasta"
     summary_path = batch_dir / "batch_summary.json"
@@ -163,22 +234,59 @@ def check_batch(batch_name: str, construct: dict) -> list[str]:
                 except (IndexError, ValueError):
                     pass
 
+        # Check 7: sequence matches UniProt (optional, requires network)
+        if verify_sequences:
+            # Verify sFLT1 chain
+            sflt1_region = f"residues_{construct['start']}-{construct['end']}"
+            sflt1_err = verify_sequence_against_uniprot(
+                sflt1_seq, "P17948", sflt1_region, uniprot_cache
+            )
+            if sflt1_err:
+                failures.append(f"{batch_name}/{target_name}: sFLT1 {sflt1_err}")
+
+            # Verify target chain
+            target_region = parts[2].strip() if len(parts) > 2 else ""
+            target_err = verify_sequence_against_uniprot(
+                target_seq, uniprot, target_region, uniprot_cache
+            )
+            if target_err:
+                failures.append(f"{batch_name}/{target_name}: target {target_err}")
+
     return failures
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Verify FASTA file integrity")
+    parser.add_argument(
+        "--skip-uniprot",
+        action="store_true",
+        help="Skip UniProt sequence verification (offline mode)",
+    )
+    args = parser.parse_args()
+
+    verify = not args.skip_uniprot
+
     print("=" * 60)
     print("FASTA Integrity Preflight Check")
+    if verify:
+        print("  (with UniProt sequence verification)")
+    else:
+        print("  (offline mode -- skipping UniProt verification)")
     print("=" * 60)
 
     all_failures = []
+    uniprot_cache: dict[str, str | None] = {}
 
     for batch_name, construct in CONSTRUCTS.items():
         batch_dir = RESULTS_DIR / batch_name
         if not batch_dir.exists():
             print(f"\n  {batch_name}: SKIP (directory not found)")
             continue
-        failures = check_batch(batch_name, construct)
+        failures = check_batch(
+            batch_name, construct,
+            verify_sequences=verify,
+            uniprot_cache=uniprot_cache,
+        )
         all_failures.extend(failures)
 
     # Also check root fasta/ for stale artifacts

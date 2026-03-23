@@ -1,0 +1,102 @@
+============================================================
+AF2 Preflight Report
+Date: 2026-03-23 13:37:13
+Host: mac.wireless.mountsinai.org
+============================================================
+
+>>> FASTA integrity
+============================================================
+FASTA Integrity Preflight Check
+  (with UniProt sequence verification)
+============================================================
+
+  d1d3_corrected: 24 FASTA files, construct 304 aa
+
+  d1d6: 11 FASTA files, construct 631 aa
+
+  d1d7: 9 FASTA files, construct 721 aa
+
+  Stale artifact check (root fasta/):
+
+============================================================
+PASS: all FASTA files verified
+
+>>> Candidate completeness
+============================================================
+Candidate Completeness Preflight Check
+============================================================
+
+  Candidates CSV: 24 targets
+
+  d1d3_corrected: expecting 24 targets
+    FASTA files: 24
+    LSF scripts: 24
+    Manifest entries: 24
+
+  d1d6: expecting 11 targets
+    FASTA files: 11
+    LSF scripts: 11
+    Manifest entries: 11
+
+  d1d7: expecting 9 targets
+    FASTA files: 9
+    LSF scripts: 9
+    Manifest entries: 9
+
+============================================================
+PASS: all candidates complete across all batches
+
+>>> AF2 inputs
+============================================================
+AlphaFold Input Preflight Check
+============================================================
+
+  Expected AF2 settings:
+    --model_preset=multimer
+    --db_preset=reduced_dbs
+    --max_template_date=2024-01-01
+    --num_multimer_predictions_per_model=5
+    --run_relax=false
+
+  Expected databases (7):
+    /data/uniref90/uniref90.fasta
+    /data/mgnify/mgy_clusters_2022_05.fa
+    /data/pdb_mmcif/mmcif_files
+    /data/pdb_mmcif/obsolete.dat
+    /data/pdb_seqres/pdb_seqres.txt
+    /data/uniprot/uniprot.fasta
+    /data/small_bfd/bfd-first_non_consensus_sequences.fasta
+
+  d1d3_corrected: 24 LSF scripts
+    HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3_corrected
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    Databases: 7/7 referenced
+    FASTA paths: 24
+    Output dirs: 24
+
+  d1d6: 11 LSF scripts
+    HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d6
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    Databases: 7/7 referenced
+    FASTA paths: 11
+    Output dirs: 11
+
+  d1d7: 9 LSF scripts
+    HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d7
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    Databases: 7/7 referenced
+    FASTA paths: 9
+    Output dirs: 9
+
+============================================================
+PASS: all AF2 inputs verified
+  (run with --check-hpc-paths on Minerva to verify filesystem paths)
+
+============================================================
+SUMMARY: 3 passed, 0 failed
+============================================================
+  PASS  FASTA integrity
+  PASS  Candidate completeness
+  PASS  AF2 inputs
+
+Report written to: /Users/andreschousal/Projects/Elahi_Lab/vasc-sflt1-alphafold/analysis/checks/preflight_report.txt
