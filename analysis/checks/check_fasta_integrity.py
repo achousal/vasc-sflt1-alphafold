@@ -308,9 +308,16 @@ def main():
             f"(residues {construct['start']}-{construct['end']}, "
             f"{construct['length']} aa)"
         )
+        bait_len = construct["length"]
         print(f"\n  {batch_name} -- Bait: {bait_label}")
-        print(f"  {'Target':<28s} {'UniProt':<10s} {'Length':>6s}  {'Region':<28s} {'Type'}")
-        print(f"  {'-'*28} {'-'*10} {'-'*6}  {'-'*28} {'-'*15}")
+        print(
+            f"  {'Target':<28s} {'UniProt':<10s} {'Target':>6s} {'Total':>6s}  "
+            f"{'Region':<28s} {'Type'}"
+        )
+        print(
+            f"  {'-'*28} {'-'*10} {'-'*6} {'-'*6}  "
+            f"{'-'*28} {'-'*15}"
+        )
 
         for fasta_path in fasta_files:
             entries = parse_fasta(fasta_path)
@@ -323,6 +330,7 @@ def main():
             name = parts[0].strip() if parts else "?"
             uniprot = parts[1].strip() if len(parts) > 1 else "?"
             region = parts[2].strip() if len(parts) > 2 else "full-length"
+            total = bait_len + len(target_seq)
 
             # Classify trimming type
             if "ectodomain" in region:
@@ -340,7 +348,7 @@ def main():
                     trim_type = "full-length"
 
             print(
-                f"  {name:<28s} {uniprot:<10s} {len(target_seq):>6d}  "
+                f"  {name:<28s} {uniprot:<10s} {len(target_seq):>6d} {total:>6d}  "
                 f"{region:<28s} {trim_type}"
             )
 
