@@ -37,6 +37,7 @@ _mod04 = importlib.import_module("04_parse_results")
 _mod05 = importlib.import_module("05_plot_results")
 _mod06 = importlib.import_module("06_render_structures")
 _mod08 = importlib.import_module("08_cleanup_pkl")
+_mod10 = importlib.import_module("10_merge_scores")
 
 select_candidates = _mod01.select_candidates
 fetch_all_sequences = _mod02.fetch_all_sequences
@@ -49,6 +50,7 @@ plot_pae_heatmap = _mod05.plot_pae_heatmap
 load_pae_matrix = _mod04.load_pae_matrix
 render_all = _mod06.render_all
 cleanup_pkl_files = _mod08.cleanup_pkl_files
+merge_scores = _mod10.merge_scores
 
 
 def main():
@@ -57,7 +59,7 @@ def main():
     )
     parser.add_argument(
         "--step",
-        choices=["select", "fetch", "generate", "parse", "plot", "render", "cleanup", "all"],
+        choices=["select", "fetch", "generate", "parse", "plot", "render", "cleanup", "merge", "all"],
         default="all",
         help="Which pipeline step to run (default: all = select+fetch+generate)",
     )
@@ -194,6 +196,7 @@ def main():
                 project_account=args.project_account,
                 gpu_type=args.gpu_type,
                 hpc_root=args.hpc_root,
+                sflt1_length=sflt1_length,
             )
             logger.info("Generated %d LSF scripts in %s", len(scripts), jobs_dir)
             logger.info(
@@ -314,6 +317,23 @@ def main():
             n_deleted = len(result["deleted"])
             action = "Would delete" if args.dry_run else "Deleted"
             logger.info("%s %d pkl files", action, n_deleted)
+
+        elif step == "merge":
+            logger.info("=== Step 3h: Merging per-target scores.json into CSV ===")
+            if not candidates_path.exists():
+                logger.error("Run --step select first")
+                sys.exit(1)
+
+            if not af_dir.exists():
+                logger.error("AlphaFold output directory not found: %s", af_dir)
+                sys.exit(1)
+
+            merge_scores(
+                af_output_dir=af_dir,
+                candidates_csv=candidates_path,
+                output_csv=scores_path,
+            )
+            logger.info("Saved: %s", scores_path)
 
     logger.info("=== Step 3 complete ===")
 

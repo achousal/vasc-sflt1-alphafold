@@ -66,8 +66,12 @@ def _build_af_command(
     fasta_path: str,
     output_dir: str,
     hpc_root: str = "",
+    sflt1_length: int = 304,
 ) -> str:
     """Build the AlphaFold multimer CLI command (singularity container).
+
+    Includes post-AF2 score extraction and pkl cleanup to reclaim disk space
+    immediately after each job completes.
 
     Parameters
     ----------
@@ -78,6 +82,8 @@ def _build_af_command(
     hpc_root : str
         If set, cd to this directory before running. Makes relative paths
         resolve correctly on HPC.
+    sflt1_length : int
+        Chain A (sFLT1) residue count for PAE computation (304, 631, or 721).
     """
     lines = []
     if hpc_root:
@@ -144,6 +150,24 @@ def _build_af_command(
         "fi",
         "",
         'echo "[$(date)] AlphaFold Multimer complete -- output validated"',
+        "",
+        "# --- Post-AF2: extract scores and delete pkl files to reclaim disk ---",
+        'EXTRACT_SCRIPT="analysis/03_structural_prediction/09_extract_and_cleanup.py"',
+        'if [[ "$WORK_DIR" != "" ]] && [[ -f "${WORK_DIR}/${EXTRACT_SCRIPT}" ]]; then',
+        '    EXTRACT_ABS="${WORK_DIR}/${EXTRACT_SCRIPT}"',
+        'elif [[ -f "$EXTRACT_SCRIPT" ]]; then',
+        '    EXTRACT_ABS="$EXTRACT_SCRIPT"',
+        "else",
+        '    EXTRACT_ABS=""',
+        "fi",
+        "",
+        'if [ -n "$EXTRACT_ABS" ]; then',
+        f'    echo "[$(date)] Extracting scores and cleaning pkl (sflt1_length={sflt1_length})..."',
+        f'    python3 "$EXTRACT_ABS" "$AF_SUBDIR" {sflt1_length}',
+        '    echo "[$(date)] Post-AF2 cleanup complete"',
+        "else",
+        '    echo "[$(date)] WARNING: extract_and_cleanup.py not found, skipping pkl cleanup"',
+        "fi",
     ])
     return "\n".join(lines)
 
@@ -208,6 +232,7 @@ def _build_job_manifest(
     results_base_dir: Path,
     hpc_root: str = "",
     local_fasta_dir: Path | None = None,
+    sflt1_length: int = 304,
 ) -> dict:
     """Build JSON manifest mapping job_key -> job metadata.
 
@@ -224,6 +249,8 @@ def _build_job_manifest(
         If set, injected into AF commands as working directory.
     local_fasta_dir : Path | None
         Local filesystem path for FASTA existence checks. If None, uses fasta_dir.
+    sflt1_length : int
+        Chain A (sFLT1) residue count for post-AF2 PAE extraction.
 
     Returns
     -------
@@ -246,7 +273,8 @@ def _build_job_manifest(
         fasta_path = fasta_dir / fasta_filename
         output_dir = results_base_dir / sname
         command = _build_af_command(
-            str(fasta_path), str(output_dir), hpc_root=hpc_root
+            str(fasta_path), str(output_dir), hpc_root=hpc_root,
+            sflt1_length=sflt1_length,
         )
 
         job_key = f"af2_{sname}"
@@ -748,6 +776,7 @@ def generate_lsf_scripts(
     project_account: str = "",
     gpu_type: str = "",
     hpc_root: str = "",
+    sflt1_length: int = 304,
 ) -> list[Path]:
     """Generate orchestrated LSF infrastructure for all candidates.
 
@@ -773,6 +802,8 @@ def generate_lsf_scripts(
     hpc_root : str
         Absolute path to project root on HPC. If set, AF commands cd here
         first and all paths resolve relative to it.
+    sflt1_length : int
+        Chain A (sFLT1) residue count for post-AF2 score extraction.
 
     Returns
     -------
@@ -802,7 +833,7 @@ def generate_lsf_scripts(
     # 1. Build manifest
     manifest = _build_job_manifest(
         candidates, manifest_fasta_dir, results_base, hpc_root=hpc_root,
-        local_fasta_dir=fasta_dir,
+        local_fasta_dir=fasta_dir, sflt1_length=sflt1_length,
     )
     manifest_path = jobs_dir / "manifest.json"
     manifest_path.write_text(
