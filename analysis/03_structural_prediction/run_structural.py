@@ -7,6 +7,7 @@ Usage:
     python run_structural.py --step generate  # Generate LSF job scripts
     python run_structural.py --step parse     # Parse AlphaFold results
     python run_structural.py --step plot      # Generate plots
+    python run_structural.py --step cleanup   # Delete pkl files after parse+render
     python run_structural.py --step all       # Run select + fetch + generate
 """
 
@@ -35,6 +36,7 @@ _mod03 = importlib.import_module("03_generate_lsf_jobs")
 _mod04 = importlib.import_module("04_parse_results")
 _mod05 = importlib.import_module("05_plot_results")
 _mod06 = importlib.import_module("06_render_structures")
+_mod08 = importlib.import_module("08_cleanup_pkl")
 
 select_candidates = _mod01.select_candidates
 fetch_all_sequences = _mod02.fetch_all_sequences
@@ -46,6 +48,7 @@ plot_iptm_barplot = _mod05.plot_iptm_barplot
 plot_pae_heatmap = _mod05.plot_pae_heatmap
 load_pae_matrix = _mod04.load_pae_matrix
 render_all = _mod06.render_all
+cleanup_pkl_files = _mod08.cleanup_pkl_files
 
 
 def main():
@@ -54,7 +57,7 @@ def main():
     )
     parser.add_argument(
         "--step",
-        choices=["select", "fetch", "generate", "parse", "plot", "render", "all"],
+        choices=["select", "fetch", "generate", "parse", "plot", "render", "cleanup", "all"],
         default="all",
         help="Which pipeline step to run (default: all = select+fetch+generate)",
     )
@@ -112,6 +115,17 @@ def main():
         default="d1d3",
         help="sFLT1 construct variant. Sets chain A length for scoring. "
              "d1d3=304aa, d1d6=631aa, d1d7=721aa.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="For cleanup step: show what would be deleted without deleting.",
+    )
+    parser.add_argument(
+        "--skip-render-check",
+        action="store_true",
+        help="For cleanup step: skip render JPEG existence check. "
+             "Use when renders are not needed or will not be regenerated.",
     )
     args = parser.parse_args()
 
@@ -278,6 +292,28 @@ def main():
                 out_path = results_dir / f"step03_pae_heatmap_{safe_name}.pdf"
                 plot_pae_heatmap(pae_matrix, sflt1_length=sflt1_length, target_name=target, output_path=out_path)
                 logger.info("Saved PAE heatmap: %s", out_path.name)
+
+        elif step == "cleanup":
+            logger.info("=== Step 3g: Cleaning up pkl files ===")
+            if not scores_path.exists():
+                logger.error("Run --step parse first to generate %s", scores_path)
+                sys.exit(1)
+
+            if not af_dir.exists():
+                logger.error("AlphaFold output directory not found: %s", af_dir)
+                sys.exit(1)
+
+            render_dir = results_dir / "renders"
+            result = cleanup_pkl_files(
+                scores_path=scores_path,
+                af_output_dir=af_dir,
+                render_dir=render_dir,
+                dry_run=args.dry_run,
+                skip_render_check=args.skip_render_check,
+            )
+            n_deleted = len(result["deleted"])
+            action = "Would delete" if args.dry_run else "Deleted"
+            logger.info("%s %d pkl files", action, n_deleted)
 
     logger.info("=== Step 3 complete ===")
 
