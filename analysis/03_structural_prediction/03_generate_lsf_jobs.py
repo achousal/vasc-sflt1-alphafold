@@ -817,12 +817,14 @@ def generate_lsf_scripts(
     # Use hpc_root for path resolution if provided
     if hpc_root:
         hpc_base = Path(hpc_root)
-        log_dir = hpc_base / "logs"
+        # Derive results_dir from jobs_dir (jobs_dir = results_dir / "jobs")
+        results_rel = jobs_dir.parent  # e.g. results/03_structural_prediction/d1d6
+        hpc_results = hpc_base / results_rel
+        log_dir = hpc_results / "logs"
         sentinel_dir = log_dir / "sentinels"
         state_file = sentinel_dir / "orchestrator_state.jsonl"
-        results_base = Path("results")  # relative, resolved via cd in command
-        # Make fasta_dir relative to hpc_root so paths resolve after cd
-        manifest_fasta_dir = Path("fasta")
+        results_base = results_rel / "results"  # relative, resolved via cd in command
+        manifest_fasta_dir = results_rel / "fasta"
     else:
         log_dir = Path("logs")
         sentinel_dir = log_dir / "sentinels"
@@ -850,7 +852,7 @@ def generate_lsf_scripts(
     # 3. Build orchestrator script
     # For the orchestrator, use HPC paths for manifest/wrapper/sentinel
     if hpc_root:
-        hpc_jobs_dir = hpc_base / jobs_dir.name
+        hpc_jobs_dir = hpc_base / jobs_dir
         orch_manifest_path = hpc_jobs_dir / "manifest.json"
         orch_wrapper_path = hpc_jobs_dir / "wrapper.sh"
     else:
