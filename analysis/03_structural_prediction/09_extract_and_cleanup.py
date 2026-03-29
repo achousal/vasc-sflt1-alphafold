@@ -15,7 +15,7 @@ Usage (called by AF2 job wrapper, not manually):
 
 Outputs:
     <af_subdir>/scores.json    -- extracted metrics
-    Deletes: result_model_*.pkl (keeps features.pkl, PDBs, ranking_debug.json)
+    Deletes: all *.pkl files (keeps PDBs, ranking_debug.json, scores.json)
 """
 
 import json
@@ -154,14 +154,17 @@ def extract_scores(af_subdir: Path, sflt1_length: int) -> dict:
 
 
 def cleanup_pkl(af_subdir: Path) -> tuple[int, float]:
-    """Delete result_model_*.pkl files. Keep features.pkl and everything else.
+    """Delete all pkl files (result_model_*.pkl and features.pkl).
+
+    features.pkl is large (~100-500 MB) and not needed after score extraction.
+    ranking_debug.json, PDB structures, and scores.json are retained.
 
     Returns
     -------
     tuple[int, float]
         (n_files_deleted, bytes_freed)
     """
-    pkls = sorted(af_subdir.glob("result_model_*.pkl"))
+    pkls = sorted(af_subdir.glob("*.pkl"))
     total_bytes = 0
     for p in pkls:
         total_bytes += p.stat().st_size

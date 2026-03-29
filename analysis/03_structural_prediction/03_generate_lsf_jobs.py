@@ -44,7 +44,12 @@ AF_GPU = 1
 
 # HPC defaults
 DEFAULT_PROJECT_ACCOUNT = "acc_vascbrain"
-DEFAULT_GPU_TYPE = ""
+# AF2 2.3.2 singularity container requires CUDA compute capability <= 8.0.
+# L40S (CC 8.9) causes XlaRuntimeError: "Could not find the corresponding function"
+# due to PTX kernel incompatibility (ptxas does not support CC 8.9).
+# V100 (CC 7.0) and A100 (CC 8.0) are known-good.
+# This string is interpolated as: #BSUB -R <GPU_TYPE>
+DEFAULT_GPU_TYPE = '"v100"'
 
 
 def _safe_name(target: str) -> str:
@@ -201,12 +206,16 @@ if [ -z "${AF_SENTINEL_DIR:-}" ]; then
 fi
 
 # Write sentinel on exit, routing to completed.log or failed.log based on exit code.
-_af_rc=0
+# IMPORTANT: Use $? in the trap, NOT a variable set after eval. When the eval'd
+# command calls `exit N`, the wrapper exits immediately -- any line after eval
+# (like _af_rc=$?) is never reached. $? in the EXIT trap correctly reflects
+# the exit status passed to `exit`.
 _write_sentinel() {
-    if [ "$_af_rc" -eq 0 ]; then
+    local rc=$?
+    if [ "$rc" -eq 0 ]; then
         echo "${AF_JOB_NAME}" >> "$AF_SENTINEL_DIR/completed.log"
     else
-        echo "${AF_JOB_NAME} rc=${_af_rc}" >> "$AF_SENTINEL_DIR/failed.log"
+        echo "${AF_JOB_NAME} rc=${rc}" >> "$AF_SENTINEL_DIR/failed.log"
     fi
 }
 trap '_write_sentinel' EXIT
@@ -338,6 +347,10 @@ PY
 }
 
 check_upstream_failures() {
+    # Log failures but do NOT abort. Individual job failures are expected
+    # (GPU incompatibility, OOM, quota). The sentinel system tracks per-job
+    # success/failure. The orchestrator's job is to wait for all jobs to
+    # finish (succeed or fail), not to abort on the first failure.
     local -a job_ids=("$@")
     local jid
     for jid in "${job_ids[@]}"; do
@@ -351,29 +364,9 @@ check_upstream_failures() {
         if [ "$stat" = "EXIT" ] || [ "$stat" = "TERM" ]; then
             local jname
             jname=$(bjobs -noheader -o "job_name" "$jid" 2>/dev/null | awk 'NF {print $1; exit}')
-            echo "[$(date '+%F %T')] FATAL: upstream job $jid ($jname) $stat (bjobs)"
+            echo "[$(date '+%F %T')] WARNING: job $jid ($jname) $stat"
             printf '{"event":"job_failed","job_id":"%s","job_name":"%s","status":"%s","ts":"%s"}\n' \
                 "$jid" "$jname" "$stat" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
-            exit 1
-        fi
-
-        if [ -z "$stat" ] || echo "$raw" | grep -qi "not found"; then
-            local hist_exit
-            hist_exit=$(bhist -l "$jid" 2>/dev/null | awk '/Completed <exit>|Exited with exit code/ {print; exit}' || true)
-            if [ -n "$hist_exit" ]; then
-                echo "[$(date '+%F %T')] FATAL: upstream job $jid EXIT (bhist): $hist_exit"
-                printf '{"event":"job_failed","job_id":"%s","status":"EXIT","ts":"%s"}\n' \
-                    "$jid" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
-                exit 1
-            fi
-            local hist_term
-            hist_term=$(bhist -l "$jid" 2>/dev/null | awk '/TERM/ {print; exit}' || true)
-            if [ -n "$hist_term" ]; then
-                echo "[$(date '+%F %T')] FATAL: upstream job $jid TERM (bhist): $hist_term"
-                printf '{"event":"job_failed","job_id":"%s","status":"TERM","ts":"%s"}\n' \
-                    "$jid" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
-                exit 1
-            fi
         fi
     done
 }
@@ -401,36 +394,44 @@ barrier_wait() {
             check_upstream_failures "${UPSTREAM_IDS[@]}"
         fi
 
+        # Count jobs that finished (succeeded or failed) by checking both sentinel logs.
+        # A job in failed.log is still "done" -- the orchestrator waits for all to finish.
         local missing=0
         local done_count=0
+        local fail_count=0
         local name
         for name in "${job_names[@]}"; do
             if grep -qx "${name}" "$SENTINEL_DIR/completed.log" 2>/dev/null; then
                 done_count=$((done_count + 1))
+            elif grep -q "^${name} " "$SENTINEL_DIR/failed.log" 2>/dev/null; then
+                done_count=$((done_count + 1))
+                fail_count=$((fail_count + 1))
             else
                 missing=$((missing + 1))
             fi
         done
 
         if [ "$missing" -eq 0 ]; then
-            echo "[$(date '+%F %T')] $label complete ($total/$total)."
-            printf '{"event":"barrier_done","stage":"%s","ts":"%s"}\n' \
-                "$label" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
+            echo "[$(date '+%F %T')] $label complete ($total/$total, $fail_count failed)."
+            printf '{"event":"barrier_done","stage":"%s","failed":%d,"ts":"%s"}\n' \
+                "$label" "$fail_count" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
             return 0
         fi
 
         if [ "$elapsed" -ge "$timeout" ]; then
-            echo "[$(date '+%F %T')] TIMEOUT: $label after ${timeout}s ($done_count/$total done)"
+            echo "[$(date '+%F %T')] TIMEOUT: $label after ${timeout}s ($done_count/$total done, $fail_count failed)"
             echo "[$(date '+%F %T')] Missing jobs:"
             for name in "${job_names[@]}"; do
-                grep -qx "${name}" "$SENTINEL_DIR/completed.log" 2>/dev/null || echo "  $name"
+                grep -qx "${name}" "$SENTINEL_DIR/completed.log" 2>/dev/null && continue
+                grep -q "^${name} " "$SENTINEL_DIR/failed.log" 2>/dev/null && continue
+                echo "  $name"
             done
-            printf '{"event":"barrier_timeout","stage":"%s","done":%d,"total":%d,"ts":"%s"}\n' \
-                "$label" "$done_count" "$total" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
+            printf '{"event":"barrier_timeout","stage":"%s","done":%d,"failed":%d,"total":%d,"ts":"%s"}\n' \
+                "$label" "$done_count" "$fail_count" "$total" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
             exit 1
         fi
 
-        echo "[$(date '+%F %T')] Progress: $done_count/$total done, polling in ${poll}s..."
+        echo "[$(date '+%F %T')] Progress: $done_count/$total done ($fail_count failed), polling in ${poll}s..."
         sleep "$poll"
         elapsed=$((elapsed + poll))
     done
@@ -778,6 +779,9 @@ def generate_lsf_scripts(
     hpc_root: str = "",
     sflt1_length: int = 304,
 ) -> list[Path]:
+    # Apply default GPU constraint if not specified. AF2 2.3.2 requires CC <= 8.0.
+    if not gpu_type:
+        gpu_type = DEFAULT_GPU_TYPE
     """Generate orchestrated LSF infrastructure for all candidates.
 
     Produces:
