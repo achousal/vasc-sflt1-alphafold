@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Orchestrator tuning
-BATCH_CHUNK_SIZE = 5  # Max concurrent jobs per submission wave. Limits peak disk.
+BATCH_CHUNK_SIZE = 10  # Jobs submitted per wave. Disk watchdog handles safety.
 POLL_INTERVAL_SECONDS = 120
 AF_JOB_TIMEOUT_SECONDS = 72 * 3600  # 72h for all AF jobs to finish
 ORCHESTRATOR_WALLTIME = "96:00"
@@ -151,32 +151,38 @@ def _build_af_command(
         "    --use_gpu_relax=false \\",
         "    --use_precomputed_msas",
         "",
-        "# Validate AF2 output -- singularity can return rc=0 despite internal Python errors",
-        '# Find the subdirectory AF2 creates (named after the FASTA stem)',
+        "# --- Post-AF2: unconditional cleanup ---",
+        "# Always runs, whether AF2 succeeded or failed.",
+        "# Success: extract scores from pkl, then delete all pkl.",
+        "# Failure: delete all intermediate files to reclaim disk.",
         'AF_SUBDIR=$(find "$OUTPUT_ABS" -name "ranking_debug.json" -printf "%h" -quit 2>/dev/null)',
-        'if [ -z "$AF_SUBDIR" ]; then',
-        '    echo "[$(date)] FATAL: No ranking_debug.json found in $OUTPUT_ABS -- AF2 failed silently"',
-        "    exit 1",
-        "fi",
         "",
-        'echo "[$(date)] AlphaFold Multimer complete -- output validated"',
-        "",
-        "# --- Post-AF2: extract scores and delete pkl files to reclaim disk ---",
-        'EXTRACT_SCRIPT="analysis/03_structural_prediction/09_extract_and_cleanup.py"',
-        'if [[ "$WORK_DIR" != "" ]] && [[ -f "${WORK_DIR}/${EXTRACT_SCRIPT}" ]]; then',
-        '    EXTRACT_ABS="${WORK_DIR}/${EXTRACT_SCRIPT}"',
-        'elif [[ -f "$EXTRACT_SCRIPT" ]]; then',
-        '    EXTRACT_ABS="$EXTRACT_SCRIPT"',
-        "else",
+        'if [ -n "$AF_SUBDIR" ]; then',
+        '    echo "[$(date)] AlphaFold Multimer complete -- output validated"',
+        '    # Extract scores and clean pkl files',
+        f'    EXTRACT_SCRIPT="analysis/03_structural_prediction/09_extract_and_cleanup.py"',
         '    EXTRACT_ABS=""',
-        "fi",
-        "",
-        'if [ -n "$EXTRACT_ABS" ]; then',
-        f'    echo "[$(date)] Extracting scores and cleaning pkl (sflt1_length={sflt1_length})..."',
-        f'    python3 "$EXTRACT_ABS" "$AF_SUBDIR" {sflt1_length}',
-        '    echo "[$(date)] Post-AF2 cleanup complete"',
+        '    [[ -n "$WORK_DIR" ]] && [[ -f "${WORK_DIR}/${EXTRACT_SCRIPT}" ]] && EXTRACT_ABS="${WORK_DIR}/${EXTRACT_SCRIPT}"',
+        '    [[ -z "$EXTRACT_ABS" ]] && [[ -f "$EXTRACT_SCRIPT" ]] && EXTRACT_ABS="$EXTRACT_SCRIPT"',
+        '    if [ -n "$EXTRACT_ABS" ]; then',
+        f'        echo "[$(date)] Extracting scores and cleaning pkl (sflt1_length={sflt1_length})..."',
+        f'        python3 "$EXTRACT_ABS" "$AF_SUBDIR" {sflt1_length} || echo "[$(date)] WARNING: score extraction failed, falling back to direct delete"',
+        '        # Safety net: delete any pkl the extract script missed',
+        '        find "$AF_SUBDIR" -name "*.pkl" -delete 2>/dev/null',
+        '        echo "[$(date)] Post-AF2 cleanup complete"',
+        '    else',
+        '        echo "[$(date)] WARNING: extract_and_cleanup.py not found, deleting pkl files directly"',
+        '        find "$AF_SUBDIR" -name "*.pkl" -delete 2>/dev/null',
+        '    fi',
         "else",
-        '    echo "[$(date)] WARNING: extract_and_cleanup.py not found, skipping pkl cleanup"',
+        '    echo "[$(date)] FATAL: No ranking_debug.json found in $OUTPUT_ABS -- AF2 failed"',
+        '    echo "[$(date)] Cleaning failed output to reclaim disk..."',
+        '    find "$OUTPUT_ABS" -name "*.pkl" -delete 2>/dev/null',
+        '    find "$OUTPUT_ABS" -path "*/msas/*" -type f -delete 2>/dev/null',
+        '    find "$OUTPUT_ABS" -type d -empty -delete 2>/dev/null',
+        '    REMAINING=$(du -sh "$OUTPUT_ABS" 2>/dev/null | cut -f1)',
+        '    echo "[$(date)] Failed output cleaned (remaining: ${REMAINING:-unknown})"',
+        "    exit 1",
         "fi",
     ])
     return "\n".join(lines)
@@ -211,12 +217,25 @@ if [ -z "${AF_SENTINEL_DIR:-}" ]; then
 fi
 
 # Write sentinel on exit, routing to completed.log or failed.log based on exit code.
+# Also clean up any leftover pkl/MSA files from killed jobs (OOM, walltime).
 # IMPORTANT: Use $? in the trap, NOT a variable set after eval. When the eval'd
 # command calls `exit N`, the wrapper exits immediately -- any line after eval
 # (like _af_rc=$?) is never reached. $? in the EXIT trap correctly reflects
 # the exit status passed to `exit`.
 _write_sentinel() {
     local rc=$?
+
+    # Emergency disk cleanup for killed jobs. When LSF kills a job (TERM_MEMLIMIT,
+    # TERM_RUNLIMIT), singularity is SIGKILLed and the AF command's cleanup never
+    # runs. The wrapper's EXIT trap still fires (LSF sends SIGTERM to shell first).
+    # Find and clean any output dir that has pkl files but no scores.json.
+    if [ "$rc" -ne 0 ] && [ -n "${AF_JOB_OUTPUT_DIR:-}" ] && [ -d "$AF_JOB_OUTPUT_DIR" ]; then
+        echo "[$(date '+%F %T')] Wrapper cleanup: rc=$rc, cleaning $AF_JOB_OUTPUT_DIR"
+        find "$AF_JOB_OUTPUT_DIR" -name "*.pkl" -delete 2>/dev/null
+        find "$AF_JOB_OUTPUT_DIR" -path "*/msas/*" -type f -delete 2>/dev/null
+        find "$AF_JOB_OUTPUT_DIR" -type d -empty -delete 2>/dev/null
+    fi
+
     if [ "$rc" -eq 0 ]; then
         echo "${AF_JOB_NAME}" >> "$AF_SENTINEL_DIR/completed.log"
     else
@@ -381,6 +400,7 @@ fields = [
     str(job["gpu"]),
     str(job["walltime"]),
     job["command_b64"],
+    job.get("output_dir", ""),
 ]
 print("\t".join(fields), end="")
 PY
@@ -489,7 +509,7 @@ submit_and_track() {
     fi
 
     local job_name queue cores mem_per_core gpu walltime command_b64
-    IFS=$'\t' read -r job_name queue cores mem_per_core gpu walltime command_b64 <<< "$job_tsv"
+    IFS=$'\t' read -r job_name queue cores mem_per_core gpu walltime command_b64 output_dir <<< "$job_tsv"
 
     local job_script
     local bsub_directive="#BSUB"
@@ -519,6 +539,7 @@ set -euo pipefail
 export AF_JOB_COMMAND_B64="$command_b64"
 export AF_JOB_NAME="$job_name"
 export AF_SENTINEL_DIR="$SENTINEL_DIR"
+export AF_JOB_OUTPUT_DIR="$output_dir"
 "$WRAPPER_SCRIPT"
 EOF
 )
@@ -774,6 +795,7 @@ def _build_standalone_lsf_script(
 set -euo pipefail
 export AF_JOB_COMMAND_B64="{job_entry["command_b64"]}"
 export AF_JOB_NAME="{job_name}"
+export AF_JOB_OUTPUT_DIR="{job_entry["output_dir"]}"
 export AF_SENTINEL_DIR="{sentinel_dir.resolve()}"
 "{wrapper_path.resolve()}"
 """
