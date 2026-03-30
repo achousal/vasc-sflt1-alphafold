@@ -29,11 +29,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Orchestrator tuning
-BATCH_CHUNK_SIZE = 10
-POLL_INTERVAL_SECONDS = 60
-AF_JOB_TIMEOUT_SECONDS = 36 * 3600  # 36h for all AF jobs to finish
-ORCHESTRATOR_WALLTIME = "48:00"
+BATCH_CHUNK_SIZE = 5  # Max concurrent jobs per submission wave. Limits peak disk.
+POLL_INTERVAL_SECONDS = 120
+AF_JOB_TIMEOUT_SECONDS = 72 * 3600  # 72h for all AF jobs to finish
+ORCHESTRATOR_WALLTIME = "96:00"
 ORCHESTRATOR_MEM = 2000  # MB
+# Disk safety: pause submission when filesystem usage exceeds this percentage.
+# Each AF2 job uses ~25-35 GB during run, cleaned to <50 MB on completion.
+DISK_USAGE_PAUSE_PCT = 92
+DISK_USAGE_RESUME_PCT = 85
+DISK_CHECK_PATH = "/sc/arion"
 
 # AF job resources (per job)
 AF_QUEUE = "gpu"
@@ -308,6 +313,8 @@ def _build_orchestrator_functions() -> str:
     """Build shared bash functions for the orchestrator.
 
     Contains:
+    - disk_usage_pct(): check filesystem usage percentage
+    - wait_for_disk(): block submission until disk usage drops below resume threshold
     - manifest_job_tsv(): read manifest and return TSV for a job key
     - check_upstream_failures(): fail-fast on EXIT/TERM via bjobs/bhist
     - barrier_wait(): poll sentinels with timeout
@@ -318,6 +325,39 @@ def _build_orchestrator_functions() -> str:
 # ---------------------------------------------------------------------------
 # Orchestrator bash functions
 # ---------------------------------------------------------------------------
+
+disk_usage_pct() {
+    # Return filesystem usage percentage for DISK_CHECK_PATH as integer.
+    df "$DISK_CHECK_PATH" 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}'
+}
+
+wait_for_disk() {
+    # Block until disk usage drops below DISK_RESUME_PCT.
+    # Called before each submission wave to prevent filling the filesystem.
+    local usage
+    usage=$(disk_usage_pct)
+    if [ -z "$usage" ]; then
+        echo "[$(date '+%F %T')] WARNING: cannot read disk usage, proceeding"
+        return 0
+    fi
+    if [ "$usage" -lt "$DISK_PAUSE_PCT" ]; then
+        return 0
+    fi
+    echo "[$(date '+%F %T')] DISK PAUSE: ${usage}% used (threshold ${DISK_PAUSE_PCT}%), waiting for ${DISK_RESUME_PCT}%..."
+    printf '{"event":"disk_pause","usage_pct":%d,"ts":"%s"}\n' \
+        "$usage" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
+    while true; do
+        sleep 120
+        usage=$(disk_usage_pct)
+        echo "[$(date '+%F %T')] Disk: ${usage}% used, resume at ${DISK_RESUME_PCT}%"
+        if [ "$usage" -lt "$DISK_RESUME_PCT" ]; then
+            echo "[$(date '+%F %T')] DISK RESUME: ${usage}% < ${DISK_RESUME_PCT}%"
+            printf '{"event":"disk_resume","usage_pct":%d,"ts":"%s"}\n' \
+                "$usage" "$(date -u '+%FT%TZ')" >> "$STATE_FILE"
+            return 0
+        fi
+    done
+}
 
 manifest_job_tsv() {
     local job_key="$1"
@@ -512,10 +552,27 @@ submit_batch() {
     local -a job_keys=("$@")
     local i
     for ((i=0; i<${#job_keys[@]}; i++)); do
+        # Check disk before each submission -- block if filesystem is filling up.
+        wait_for_disk
         submit_and_track "${job_keys[$i]}" "${job_keys[$i]}" "$id_file"
         if (( (i + 1) % chunk_size == 0 && i + 1 < ${#job_keys[@]} )); then
-            echo "[$(date '+%F %T')] Submitted $((i+1))/${#job_keys[@]}, pausing..."
-            sleep 2
+            echo "[$(date '+%F %T')] Submitted $((i+1))/${#job_keys[@]}, waiting for completions..."
+            # Wait for current chunk to finish before submitting next.
+            # This limits peak concurrent disk usage to chunk_size * ~30 GB.
+            local done_so_far=0
+            local target_done=$((i + 1))
+            while [ "$done_so_far" -lt "$target_done" ]; do
+                sleep "$POLL_INTERVAL"
+                local c_count=0
+                local f_count=0
+                [ -f "$SENTINEL_DIR/completed.log" ] && c_count=$(wc -l < "$SENTINEL_DIR/completed.log")
+                [ -f "$SENTINEL_DIR/failed.log" ] && f_count=$(wc -l < "$SENTINEL_DIR/failed.log")
+                done_so_far=$((c_count + f_count))
+                echo "[$(date '+%F %T')] Chunk gate: $done_so_far/$target_done done (${c_count} ok, ${f_count} fail)"
+                if [ "$done_so_far" -ge "$target_done" ]; then
+                    break
+                fi
+            done
         fi
     done
 }
@@ -577,6 +634,9 @@ BATCH_CHUNK={BATCH_CHUNK_SIZE}
 AF_TIMEOUT={AF_JOB_TIMEOUT_SECONDS}
 EXPECTED_JOBS={len(manifest)}
 PROJECT_ACCOUNT="{project_account}"{gpu_type_export}
+DISK_CHECK_PATH="{DISK_CHECK_PATH}"
+DISK_PAUSE_PCT={DISK_USAGE_PAUSE_PCT}
+DISK_RESUME_PCT={DISK_USAGE_RESUME_PCT}
 
 {_build_orchestrator_functions()}
 
