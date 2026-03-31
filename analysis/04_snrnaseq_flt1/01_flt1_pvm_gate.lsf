@@ -1,0 +1,39 @@
+#!/bin/bash
+#BSUB -J g1_flt1_pvm
+#BSUB -P acc_vascbrain
+#BSUB -q premium
+#BSUB -n 1
+#BSUB -R "rusage[mem=32000]"
+#BSUB -W 02:00
+#BSUB -o /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/04_snrnaseq_flt1/g1_flt1_%J.stdout
+#BSUB -e /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/04_snrnaseq_flt1/g1_flt1_%J.stderr
+
+set -euo pipefail
+
+# Directories
+PROJECT_DIR="/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold"
+SCRIPT_DIR="${PROJECT_DIR}/analysis/04_snrnaseq_flt1"
+DATA_DIR="${PROJECT_DIR}/data/sea_ad"
+OUT_DIR="${PROJECT_DIR}/results/04_snrnaseq_flt1"
+H5AD="${DATA_DIR}/SEA-AD_Microglia-and-Immune_multi-regional_final-nuclei_AAIC-pre-release.2025-07-24.h5ad"
+
+mkdir -p "${OUT_DIR}"
+
+# Activate environment
+source activate /sc/arion/work/chousa01/envs/cellxgene_census
+
+# Verify data exists
+if [[ ! -f "${H5AD}" ]]; then
+    echo "ERROR: h5ad not found at ${H5AD}. Run 00_download_data.sh first."
+    exit 1
+fi
+
+echo "Starting G1 gate analysis: $(date)"
+echo "H5AD: ${H5AD}"
+echo "Output: ${OUT_DIR}"
+
+python "${SCRIPT_DIR}/01_flt1_pvm_gate.py" \
+    --h5ad "${H5AD}" \
+    --outdir "${OUT_DIR}"
+
+echo "G1 gate analysis complete: $(date)"
