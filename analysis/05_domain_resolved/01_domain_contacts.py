@@ -401,6 +401,9 @@ def g2_reframed(scores_d1d3: pd.DataFrame, scores_d1d6: pd.DataFrame,
     constructs = {"D1-D3": scores_d1d3, "D1-D6": scores_d1d6, "D1-D7": scores_d1d7}
 
     for construct, df in constructs.items():
+        if df.empty or "target" not in df.columns:
+            print(f"\n{construct}: no data available")
+            continue
         vegfa = df[df["target"] == "VEGFA"]
         nrp1 = df[df["target"] == "NRP1"]
 
@@ -485,9 +488,11 @@ def main():
 
     # G2 reframed: cross-construct comparison
     # Load all three construct score files
+    # results_dir is e.g. .../d1d3/results/, so go up two levels to 03_structural_prediction/
+    struct_root = results_dir.parent.parent
     d1d3_scores = scores_df  # already loaded (this is the primary)
-    d1d6_path = results_dir.parent / "d1d6" / "step03_interaction_scores.csv"
-    d1d7_path = results_dir.parent / "d1d7" / "step03_interaction_scores.csv"
+    d1d6_path = struct_root / "d1d6" / "step03_interaction_scores.csv"
+    d1d7_path = struct_root / "d1d7" / "step03_interaction_scores.csv"
 
     d1d6_scores = pd.read_csv(d1d6_path) if d1d6_path.exists() else pd.DataFrame()
     d1d7_scores = pd.read_csv(d1d7_path) if d1d7_path.exists() else pd.DataFrame()
