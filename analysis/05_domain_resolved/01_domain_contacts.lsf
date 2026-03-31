@@ -1,0 +1,33 @@
+#!/bin/bash
+#BSUB -J c1_domain_resolved
+#BSUB -P acc_vascbrain
+#BSUB -q premium
+#BSUB -n 1
+#BSUB -R "rusage[mem=8000]"
+#BSUB -W 01:00
+#BSUB -o /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/05_domain_resolved/c1_%J.stdout
+#BSUB -e /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/05_domain_resolved/c1_%J.stderr
+
+set -euo pipefail
+
+PROJECT_DIR="/sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold"
+SCRIPT_DIR="${PROJECT_DIR}/analysis/05_domain_resolved"
+RESULTS_DIR="${PROJECT_DIR}/results/03_structural_prediction/d1d3/results"
+CANDIDATES="${PROJECT_DIR}/results/03_structural_prediction/d1d3/step03_candidates.csv"
+SCORES="${PROJECT_DIR}/results/03_structural_prediction/d1d3/step03_interaction_scores.csv"
+OUT_DIR="${PROJECT_DIR}/results/05_domain_resolved"
+
+mkdir -p "${OUT_DIR}"
+
+source activate /sc/arion/work/chousa01/envs/cellxgene_census
+
+echo "Starting C1 + G2 analysis: $(date)"
+
+python "${SCRIPT_DIR}/01_domain_contacts.py" \
+    --results-dir "${RESULTS_DIR}" \
+    --candidates "${CANDIDATES}" \
+    --scores "${SCORES}" \
+    --outdir "${OUT_DIR}" \
+    --construct "D1-D3"
+
+echo "C1 + G2 analysis complete: $(date)"
