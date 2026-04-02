@@ -3,7 +3,8 @@
 Generates:
   - PAE heatmaps per candidate (inter-chain blocks highlighted)
   - ipTM bar chart (VEGFA positive control marked)
-  - Summary table
+  - Summary table (with ipSAE, LIS, template bias)
+  - Stats report
 """
 
 import logging
@@ -140,11 +141,18 @@ def plot_iptm_barplot(
     logger.info("Saved: %s", output_path.name)
 
 
+def _safe_col(df: pd.DataFrame, col: str) -> bool:
+    """Check if column exists and has any non-null values."""
+    return col in df.columns and df[col].notna().any()
+
+
 def generate_summary_table(
     scores_df: pd.DataFrame,
     output_path: Path,
 ) -> None:
     """Write a formatted summary CSV with key metrics.
+
+    Includes ipSAE, LIS, and template bias columns when available.
 
     Parameters
     ----------
@@ -153,12 +161,20 @@ def generate_summary_table(
     output_path : Path
         Output CSV path.
     """
-    summary = scores_df[[
+    base_cols = [
         "target", "uniprot", "iptm_best", "iptm_mean", "ptm_best",
         "mean_interchain_pae", "interaction_call", "n_models_parsed",
         "rank_by_iptm",
-    ]].copy()
+    ]
+    extra_cols = [
+        "ipsae_best", "lis_best",
+        "template_bias_flag", "template_coverage_b",
+    ]
 
+    cols = base_cols + [c for c in extra_cols if _safe_col(scores_df, c)]
+    available = [c for c in cols if c in scores_df.columns]
+
+    summary = scores_df[available].copy()
     summary = summary.sort_values("rank_by_iptm")
     summary.to_csv(output_path, index=False)
     logger.info("Saved: %s", output_path.name)
@@ -186,7 +202,7 @@ def generate_stats_report(
         "Step 03: Structural Prediction -- Summary Statistics",
         f"Generated: {datetime.now().isoformat(timespec='seconds')}",
         "",
-        f"== Candidates ==",
+        "== Candidates ==",
         f"  Total candidates: {len(candidates_df)}",
         f"  Positive controls: {len(candidates_df[candidates_df['tier'] == 0])}",
     ]
@@ -206,6 +222,38 @@ def generate_stats_report(
         if n > 0:
             lines.append(f"  {call}: {n}")
 
+    # Template bias summary
+    if _safe_col(scores_df, "template_bias_flag"):
+        n_biased = scores_df["template_bias_flag"].sum()
+        if n_biased > 0:
+            lines.extend(["", "== Template Bias Warnings =="])
+            lines.append(f"  Targets with low partner template coverage (<30%): {int(n_biased)}")
+            biased = scores_df[scores_df["template_bias_flag"] == True].sort_values(
+                "template_coverage_b", ascending=True
+            )
+            for _, row in biased.head(10).iterrows():
+                cov = row.get("template_coverage_b", np.nan)
+                cov_str = f"{cov:.0%}" if not pd.isna(cov) else "?"
+                lines.append(f"  {row['target']}: partner coverage {cov_str}")
+
+    # ipSAE rescue candidates: low ipTM but high ipSAE
+    if _safe_col(scores_df, "ipsae_best"):
+        rescued = scores_df[
+            (scores_df["iptm_best"] < 0.6) &
+            (scores_df["ipsae_best"] > 0.01) &
+            (scores_df["ipsae_best"].notna())
+        ].sort_values("ipsae_best", ascending=False)
+
+        if not rescued.empty:
+            lines.extend(["", "== ipSAE Rescue Candidates (ipTM<0.6, ipSAE>0.01) =="])
+            lines.append("  These targets have low global ipTM but confident local contacts:")
+            for _, row in rescued.head(10).iterrows():
+                lis_str = f", LIS={row['lis_best']:.1f}" if _safe_col(scores_df, "lis_best") and not pd.isna(row.get("lis_best")) else ""
+                lines.append(
+                    f"  {row['target']}: ipTM={row['iptm_best']:.3f}, "
+                    f"ipSAE={row['ipsae_best']:.4f}{lis_str}"
+                )
+
     # VEGFA positive control check
     vegfa = scores_df[scores_df["target"] == "VEGFA"]
     lines.extend(["", "== VEGFA Positive Control =="])
@@ -214,12 +262,18 @@ def generate_stats_report(
     elif vegfa.iloc[0]["n_models_parsed"] == 0:
         lines.append("  VEGFA: not yet run")
     else:
-        iptm = vegfa.iloc[0]["iptm_best"]
+        row = vegfa.iloc[0]
+        iptm = row["iptm_best"]
         lines.append(f"  VEGFA ipTM: {iptm}")
         if not np.isnan(iptm) and iptm > 0.7:
             lines.append("  PASS: ipTM > 0.7 (method calibrated)")
         elif not np.isnan(iptm):
             lines.append("  WARNING: ipTM <= 0.7 (calibration concern)")
+
+        if _safe_col(scores_df, "ipsae_best") and not pd.isna(row.get("ipsae_best")):
+            lines.append(f"  VEGFA ipSAE: {row['ipsae_best']:.4f}")
+        if _safe_col(scores_df, "lis_best") and not pd.isna(row.get("lis_best")):
+            lines.append(f"  VEGFA LIS: {row['lis_best']:.1f}")
 
     # Top interactions
     predicted = scores_df[
@@ -229,10 +283,17 @@ def generate_stats_report(
     if not predicted.empty:
         lines.extend(["", "== Top Predicted Interactions =="])
         for _, row in predicted.head(10).iterrows():
+            extra = ""
+            if _safe_col(scores_df, "ipsae_best") and not pd.isna(row.get("ipsae_best")):
+                extra += f", ipSAE={row['ipsae_best']:.4f}"
+            if _safe_col(scores_df, "lis_best") and not pd.isna(row.get("lis_best")):
+                extra += f", LIS={row['lis_best']:.1f}"
+            if row.get("template_bias_flag"):
+                extra += " [TMPL_BIAS]"
             lines.append(
                 f"  {row['target']} ({row['uniprot']}): "
                 f"ipTM={row['iptm_best']}, PAE={row['mean_interchain_pae']}, "
-                f"call={row['interaction_call']}"
+                f"call={row['interaction_call']}{extra}"
             )
 
     with open(output_path, "w") as f:

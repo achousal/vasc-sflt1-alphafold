@@ -233,7 +233,7 @@ class TestLSFScripts:
             assert "#BSUB -q gpu" in content
             assert "#BSUB -n 4" in content
             assert '#BSUB -gpu "num=1"' in content or "ngpus_excl_p=1" in content
-            assert "#BSUB -W 24:00" in content
+            assert "#BSUB -W 48:00" in content
 
     def test_standalone_lsf_uses_wrapper(self):
         with tempfile.TemporaryDirectory() as tmpdir:

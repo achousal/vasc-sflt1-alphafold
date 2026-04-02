@@ -2,19 +2,18 @@
 
 Produces two-chain FASTA files for AlphaFold Multimer:
   Chain A: sFLT1 construct (D1-D3, D1-D6, or D1-D7)
-  Chain B: candidate protein (ectodomain-only for transmembrane proteins)
+  Chain B: candidate protein (extracellular region only)
 
 Construct definitions use structural boundaries from 5T89 (Markovic-Mueller
 2017, VEGF + FLT1 D1-D6 crystal structure at 4.0A) rather than UniProt Ig-core
 annotations. Signal peptide (residues 1-26) is always excluded -- all published
 structural studies use the mature protein starting at Ser27.
 
-Transmembrane protein handling:
-  sFLT1 is soluble/extracellular, so it can only interact with the extracellular
-  portion of transmembrane partners. For TM proteins, we extract the full
-  ectodomain (after signal peptide, before first TM helix) from UniProt topology
-  annotations. Cytoplasmic domains are excluded to avoid biologically impossible
-  interface predictions and reduce GPU cost.
+Partner protein trimming (priority order):
+  1. Annotated extracellular domain from UniProt "Topological domain" features
+  2. Inferred ectodomain: after signal peptide, before first TM helix
+  3. Chain annotation for GPI-anchored proteins
+  4. Mature protein (signal peptide removed) for soluble/secreted
 
 Numbering: all residue numbers refer to P17948 (FLT1_HUMAN) precursor.
 """
@@ -31,25 +30,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # FLT1 / sFLT1 construct definitions (P17948 precursor numbering)
 # ---------------------------------------------------------------------------
-# Signal peptide: residues 1-26 (cleaved, never included)
-# Mature protein starts at Ser27
-#
-# Domain boundaries from 5T89 crystal structure (structural, includes linkers):
-#   D1: 32-130    D2: 132-225    D3: 226-330
-#   D4: 333-425   D5: 426-555    D6: 556-657
-#   D7: 661-747   (UniProt; not resolved in 5T89)
-#
-
 SFLT1_UNIPROT = "P17948"
 
 
 @dataclass(frozen=True)
 class FLT1Construct:
     """sFLT1/FLT1 ectodomain construct definition."""
-    name: str           # e.g. "D1-D3", "D1-D6", "D1-D7"
-    start: int          # P17948 precursor residue (1-indexed, inclusive)
-    end: int            # P17948 precursor residue (1-indexed, inclusive)
-    description: str    # for FASTA header
+    name: str
+    start: int
+    end: int
+    description: str
 
     @property
     def length(self) -> int:
@@ -60,194 +50,165 @@ class FLT1Construct:
         return f"sFLT1_{self.name}"
 
 
-# Canonical constructs
 CONSTRUCT_D1D3 = FLT1Construct(
-    name="D1-D3",
-    start=27,
-    end=330,
+    name="D1-D3", start=27, end=330,
     description="Mature sFLT1 D1-D3, structural boundaries (5T89)",
 )
-
 CONSTRUCT_D1D6 = FLT1Construct(
-    name="D1-D6",
-    start=27,
-    end=657,
-    description="Mature sFLT1 D1-D6, structural boundaries (5T89 D1-D6 + linker margin)",
+    name="D1-D6", start=27, end=657,
+    description="Mature sFLT1 D1-D6, structural boundaries (5T89)",
 )
-
 CONSTRUCT_D1D7 = FLT1Construct(
-    name="D1-D7",
-    start=27,
-    end=747,
+    name="D1-D7", start=27, end=747,
     description="FLT1 full ectodomain D1-D7, UniProt D7 end",
 )
 
-CONSTRUCTS = {
-    "d1d3": CONSTRUCT_D1D3,
-    "d1d6": CONSTRUCT_D1D6,
-    "d1d7": CONSTRUCT_D1D7,
-}
+CONSTRUCTS = {"d1d3": CONSTRUCT_D1D3, "d1d6": CONSTRUCT_D1D6, "d1d7": CONSTRUCT_D1D7}
 
-# Backwards compat
 SFLT1_D1D3_START = CONSTRUCT_D1D3.start
 SFLT1_D1D3_END = CONSTRUCT_D1D3.end
 
 # UniProt REST API
 UNIPROT_API_URL = "https://rest.uniprot.org/uniprotkb/{accession}.fasta"
+UNIPROT_JSON_URL = "https://rest.uniprot.org/uniprotkb/{accession}.json"
 
-# Rate limiting
-REQUEST_DELAY = 0.5  # seconds between requests
+REQUEST_DELAY = 0.5
 MAX_RETRIES = 3
-RETRY_DELAY = 5  # seconds
+RETRY_DELAY = 5
+
+MIN_ECTODOMAIN_LENGTH = 50
+
+# Subcellular locations that can interact with extracellular sFLT1
+ACCESSIBLE_KEYWORDS = {
+    "Cell membrane", "Secreted", "Cell surface",
+    "Extracellular space", "Extracellular matrix",
+}
+
+# Locations that are definitely intracellular
+INTRACELLULAR_KEYWORDS = {
+    "Cytoplasm", "Nucleus", "Mitochondrion", "Endoplasmic reticulum",
+    "Golgi apparatus", "Lysosome", "Peroxisome",
+}
 
 
-def fetch_fasta_from_uniprot(accession: str) -> str | None:
-    """Fetch a protein FASTA sequence from UniProt REST API.
-
-    Parameters
-    ----------
-    accession : str
-        UniProt accession (e.g., "P17948").
-
-    Returns
-    -------
-    str or None
-        Raw FASTA text, or None on failure.
-    """
-    url = UNIPROT_API_URL.format(accession=accession)
-
+# ---------------------------------------------------------------------------
+# UniProt fetch helpers
+# ---------------------------------------------------------------------------
+def _uniprot_get(url: str, as_json: bool = False):
+    """GET with retries and rate-limit handling."""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.get(url, timeout=30)
-            if response.status_code == 200:
-                return response.text
-            if response.status_code == 429:
-                logger.warning(
-                    "Rate limited for %s, waiting %ds (attempt %d/%d)",
-                    accession, RETRY_DELAY, attempt, MAX_RETRIES,
-                )
+            resp = requests.get(url, timeout=30)
+            if resp.status_code == 200:
+                return resp.json() if as_json else resp.text
+            if resp.status_code == 429:
+                logger.warning("Rate limited, waiting %ds (attempt %d)", RETRY_DELAY, attempt)
                 time.sleep(RETRY_DELAY)
                 continue
-            logger.warning(
-                "UniProt returned %d for %s (attempt %d/%d)",
-                response.status_code, accession, attempt, MAX_RETRIES,
-            )
+            logger.warning("HTTP %d for %s (attempt %d)", resp.status_code, url, attempt)
         except requests.RequestException as e:
-            logger.warning(
-                "Request failed for %s: %s (attempt %d/%d)",
-                accession, e, attempt, MAX_RETRIES,
-            )
+            logger.warning("Request failed: %s (attempt %d)", e, attempt)
         time.sleep(RETRY_DELAY)
-
-    logger.error("Failed to fetch %s after %d attempts", accession, MAX_RETRIES)
     return None
 
 
+def fetch_fasta_from_uniprot(accession: str) -> str | None:
+    """Fetch FASTA text from UniProt."""
+    return _uniprot_get(UNIPROT_API_URL.format(accession=accession))
+
+
 def parse_fasta_sequence(fasta_text: str) -> str:
-    """Extract the sequence from FASTA text (strip header and whitespace).
-
-    Parameters
-    ----------
-    fasta_text : str
-        Raw FASTA text.
-
-    Returns
-    -------
-    str
-        Amino acid sequence.
-    """
+    """Extract amino acid sequence from FASTA text."""
     lines = fasta_text.strip().split("\n")
-    seq_lines = [line.strip() for line in lines if not line.startswith(">")]
-    return "".join(seq_lines)
+    return "".join(line.strip() for line in lines if not line.startswith(">"))
 
 
+def trim_sequence(sequence: str, start: int, end: int) -> str:
+    """Trim sequence to residue range (1-indexed, inclusive)."""
+    return sequence[start - 1 : end]
+
+
+# ---------------------------------------------------------------------------
+# Protein topology
+# ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ProteinTopology:
     """Protein topology from UniProt annotations."""
     accession: str
     seq_length: int
-    signal_peptide: tuple[int, int] | None  # (start, end) 1-indexed
+    signal_peptide: tuple[int, int] | None
     transmembrane: tuple[tuple[int, int], ...] = field(default_factory=tuple)
-    chain: tuple[int, int] | None = None  # (start, end) from UniProt Chain feature
-    gpi_anchor: int | None = None  # residue number of GPI-anchor site
-    protein_type: str = "soluble"  # soluble, type_i_tm, multi_tm, gpi_anchored
+    extracellular: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    chain: tuple[int, int] | None = None
+    gpi_anchor: int | None = None
+    protein_type: str = "soluble"
+    subcellular_keywords: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def is_transmembrane(self) -> bool:
         return len(self.transmembrane) > 0
 
     @property
-    def ectodomain_range(self) -> tuple[int, int] | None:
-        """Return (start, end) 1-indexed of the full extracellular domain.
+    def is_accessible(self) -> bool:
+        """Can this protein interact with extracellular sFLT1?"""
+        if self.is_transmembrane or self.protein_type == "gpi_anchored":
+            return True
+        kw_set = set(self.subcellular_keywords)
+        if kw_set & ACCESSIBLE_KEYWORDS:
+            return True
+        if kw_set and kw_set <= INTRACELLULAR_KEYWORDS:
+            return False
+        # No keywords -- assume accessible (conservative)
+        return True
 
-        For type I TM proteins: after signal peptide, before first TM helix.
-        For multi-TM: after signal peptide, before first TM helix (N-terminal ecto).
-        For soluble/secreted: None (use full mature protein).
+    @property
+    def extracellular_range(self) -> tuple[int, int] | None:
+        """Best extracellular region to model. Annotated ECD first, inferred second.
+
+        Returns (start, end) 1-indexed, or None.
         """
-        if not self.is_transmembrane:
-            return None
-        ecto_start = (self.signal_peptide[1] + 1) if self.signal_peptide else 1
-        ecto_end = self.transmembrane[0][0] - 1
-        if ecto_end < ecto_start:
-            return None
-        return (ecto_start, ecto_end)
+        # Strategy A: annotated extracellular topological domains
+        if self.extracellular:
+            start = min(r[0] for r in self.extracellular)
+            end = max(r[1] for r in self.extracellular)
+            if (end - start + 1) >= MIN_ECTODOMAIN_LENGTH:
+                return (start, end)
+
+        # Strategy B: infer from signal peptide → first TM helix
+        if self.is_transmembrane:
+            ecto_start = (self.signal_peptide[1] + 1) if self.signal_peptide else 1
+            ecto_end = self.transmembrane[0][0] - 1
+            if ecto_end >= ecto_start and (ecto_end - ecto_start + 1) >= MIN_ECTODOMAIN_LENGTH:
+                return (ecto_start, ecto_end)
+
+        return None
+
+    @property
+    def mature_range(self) -> tuple[int, int] | None:
+        """Mature protein range (signal peptide removed)."""
+        if self.chain:
+            return self.chain
+        if self.signal_peptide:
+            return (self.signal_peptide[1] + 1, self.seq_length)
+        return None
+
+    # Keep old property for backward compat with tests
+    @property
+    def ectodomain_range(self) -> tuple[int, int] | None:
+        return self.extracellular_range
 
     @property
     def ectodomain_length(self) -> int | None:
-        r = self.ectodomain_range
-        if r is None:
-            return None
-        return r[1] - r[0] + 1
-
-
-# UniProt JSON API for topology
-UNIPROT_JSON_URL = "https://rest.uniprot.org/uniprotkb/{accession}.json"
-
-# Minimum ectodomain length to model (skip if shorter)
-MIN_ECTODOMAIN_LENGTH = 50
+        r = self.extracellular_range
+        return (r[1] - r[0] + 1) if r else None
 
 
 def fetch_topology_from_uniprot(accession: str) -> ProteinTopology | None:
-    """Fetch protein topology annotations from UniProt JSON API.
-
-    Parameters
-    ----------
-    accession : str
-        UniProt accession (e.g., "O14786").
-
-    Returns
-    -------
-    ProteinTopology or None
-        Topology data, or None on failure.
-    """
-    url = UNIPROT_JSON_URL.format(accession=accession)
-
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            response = requests.get(url, timeout=30)
-            if response.status_code == 200:
-                data = response.json()
-                return _parse_topology(accession, data)
-            if response.status_code == 429:
-                logger.warning(
-                    "Rate limited for %s topology, waiting %ds (attempt %d/%d)",
-                    accession, RETRY_DELAY, attempt, MAX_RETRIES,
-                )
-                time.sleep(RETRY_DELAY)
-                continue
-            logger.warning(
-                "UniProt JSON returned %d for %s (attempt %d/%d)",
-                response.status_code, accession, attempt, MAX_RETRIES,
-            )
-        except requests.RequestException as e:
-            logger.warning(
-                "Request failed for %s topology: %s (attempt %d/%d)",
-                accession, e, attempt, MAX_RETRIES,
-            )
-        time.sleep(RETRY_DELAY)
-
-    logger.error("Failed to fetch topology for %s after %d attempts", accession, MAX_RETRIES)
-    return None
+    """Fetch protein topology from UniProt JSON API."""
+    data = _uniprot_get(UNIPROT_JSON_URL.format(accession=accession), as_json=True)
+    if data is None:
+        return None
+    return _parse_topology(accession, data)
 
 
 def _parse_topology(accession: str, data: dict) -> ProteinTopology:
@@ -257,11 +218,13 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
 
     signal_peptide = None
     transmembrane = []
+    extracellular = []
     chain = None
     gpi_anchor = None
 
-    # Check keywords for GPI-anchor
+    # Subcellular location keywords
     keywords = {kw.get("name", "") for kw in data.get("keywords", [])}
+    subcell_kw = tuple(sorted(keywords & (ACCESSIBLE_KEYWORDS | INTRACELLULAR_KEYWORDS)))
     is_gpi = "GPI-anchor" in keywords
 
     for feat in features:
@@ -269,6 +232,7 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
         loc = feat.get("location", {})
         start = loc.get("start", {}).get("value")
         end = loc.get("end", {}).get("value")
+        desc = feat.get("description", "")
 
         if start is None or end is None:
             continue
@@ -277,13 +241,13 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
             signal_peptide = (start, end)
         elif ftype == "Transmembrane":
             transmembrane.append((start, end))
+        elif ftype == "Topological domain" and "Extracellular" in desc:
+            extracellular.append((start, end))
         elif ftype == "Chain" and chain is None:
-            # First Chain entry = primary mature protein
             chain = (start, end)
-        elif ftype == "Lipidation" and "GPI" in feat.get("description", ""):
+        elif ftype == "Lipidation" and "GPI" in desc:
             gpi_anchor = start
 
-    # Classify protein type
     if len(transmembrane) > 1:
         protein_type = "multi_tm"
     elif len(transmembrane) == 1:
@@ -298,93 +262,40 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
         seq_length=seq_length,
         signal_peptide=signal_peptide,
         transmembrane=tuple(transmembrane),
+        extracellular=tuple(extracellular),
         chain=chain,
         gpi_anchor=gpi_anchor,
         protein_type=protein_type,
+        subcellular_keywords=subcell_kw,
     )
 
 
-def trim_sequence(sequence: str, start: int, end: int) -> str:
-    """Trim a protein sequence to a specific residue range (1-indexed).
-
-    Parameters
-    ----------
-    sequence : str
-        Full amino acid sequence.
-    start : int
-        Start residue (1-indexed, inclusive).
-    end : int
-        End residue (1-indexed, inclusive).
-
-    Returns
-    -------
-    str
-        Trimmed sequence.
-    """
-    return sequence[start - 1 : end]
-
-
-def get_sflt1_sequence(
-    construct: FLT1Construct | None = None,
-) -> str | None:
-    """Fetch and trim the sFLT1/FLT1 ectodomain sequence.
-
-    Parameters
-    ----------
-    construct : FLT1Construct, optional
-        Which construct to extract. Defaults to CONSTRUCT_D1D3.
-
-    Returns
-    -------
-    str or None
-        Trimmed sequence, or None on failure.
-    """
+# ---------------------------------------------------------------------------
+# sFLT1 sequence
+# ---------------------------------------------------------------------------
+def get_sflt1_sequence(construct: FLT1Construct | None = None) -> str | None:
+    """Fetch and trim the sFLT1/FLT1 ectodomain sequence."""
     if construct is None:
         construct = CONSTRUCT_D1D3
-
     fasta_text = fetch_fasta_from_uniprot(SFLT1_UNIPROT)
     if fasta_text is None:
         return None
-
     full_seq = parse_fasta_sequence(fasta_text)
     trimmed = trim_sequence(full_seq, construct.start, construct.end)
-    logger.info(
-        "sFLT1 %s: %d residues (trimmed from %d, residues %d-%d)",
-        construct.name, len(trimmed), len(full_seq),
-        construct.start, construct.end,
-    )
+    logger.info("sFLT1 %s: %d aa (residues %d-%d)", construct.name, len(trimmed),
+                construct.start, construct.end)
     return trimmed
 
 
+# ---------------------------------------------------------------------------
+# FASTA output
+# ---------------------------------------------------------------------------
 def write_two_chain_fasta(
-    sflt1_seq: str,
-    partner_seq: str,
-    target_name: str,
-    partner_uniprot: str,
-    output_path: Path,
-    construct: FLT1Construct | None = None,
-    partner_region: str = "",
+    sflt1_seq: str, partner_seq: str, target_name: str,
+    partner_uniprot: str, output_path: Path,
+    construct: FLT1Construct | None = None, partner_region: str = "",
 ) -> None:
-    """Write a two-chain FASTA file for AlphaFold Multimer.
-
-    Parameters
-    ----------
-    sflt1_seq : str
-        sFLT1/FLT1 ectodomain amino acid sequence.
-    partner_seq : str
-        Partner protein amino acid sequence.
-    target_name : str
-        Short name for the partner protein.
-    partner_uniprot : str
-        UniProt accession of the partner.
-    output_path : Path
-        Output FASTA file path.
-    construct : FLT1Construct, optional
-        Construct used for Chain A header. Defaults to CONSTRUCT_D1D3.
-    partner_region : str
-        Description of the partner region (e.g., "ectodomain_22-856").
-        Appended to the partner FASTA header for provenance.
-    """
+    """Write a two-chain FASTA for AlphaFold Multimer."""
     if construct is None:
         construct = CONSTRUCT_D1D3
 
@@ -393,10 +304,8 @@ def write_two_chain_fasta(
         partner_header += f"|{partner_region}"
 
     with open(output_path, "w") as f:
-        f.write(
-            f">{construct.fasta_header_tag}|{SFLT1_UNIPROT}"
-            f"|residues_{construct.start}-{construct.end}\n"
-        )
+        f.write(f">{construct.fasta_header_tag}|{SFLT1_UNIPROT}"
+                f"|residues_{construct.start}-{construct.end}\n")
         for i in range(0, len(sflt1_seq), 80):
             f.write(sflt1_seq[i : i + 80] + "\n")
         f.write(partner_header + "\n")
@@ -404,6 +313,68 @@ def write_two_chain_fasta(
             f.write(partner_seq[i : i + 80] + "\n")
 
 
+# ---------------------------------------------------------------------------
+# Partner sequence selection
+# ---------------------------------------------------------------------------
+def select_partner_region(
+    full_seq: str, topo: ProteinTopology, target: str,
+) -> tuple[str, str, str]:
+    """Pick the right region of a partner protein to model.
+
+    Returns (sequence, region_tag, status).
+    Region tag goes in the FASTA header for provenance.
+    """
+    # Intracellular-only → skip
+    if not topo.is_accessible:
+        logger.warning("  %s: intracellular-only (%s), skipping",
+                       target, ", ".join(topo.subcellular_keywords))
+        return ("", "", "intracellular")
+
+    # TM or multi-TM → extracellular region
+    if topo.is_transmembrane:
+        ecd = topo.extracellular_range
+        if ecd is not None:
+            seq = trim_sequence(full_seq, ecd[0], ecd[1])
+            src = "annotated" if topo.extracellular else "inferred"
+            logger.info("  %s: %s, %s ECD %d-%d (%d aa)",
+                        target, topo.protein_type, src, ecd[0], ecd[1], len(seq))
+            return (seq, f"ecd_{ecd[0]}-{ecd[1]}", "ok")
+        else:
+            logger.warning("  %s: TM but ECD < %d aa, skipping",
+                           target, MIN_ECTODOMAIN_LENGTH)
+            return ("", "", "ecd_too_short")
+
+    # GPI-anchored → Chain annotation (excludes SP + GPI tail)
+    if topo.protein_type == "gpi_anchored":
+        if topo.chain is not None:
+            seq = trim_sequence(full_seq, topo.chain[0], topo.chain[1])
+            logger.info("  %s: GPI, chain %d-%d (%d aa)",
+                        target, topo.chain[0], topo.chain[1], len(seq))
+            return (seq, f"mature_{topo.chain[0]}-{topo.chain[1]}", "ok")
+        elif topo.signal_peptide:
+            start = topo.signal_peptide[1] + 1
+            seq = trim_sequence(full_seq, start, topo.seq_length)
+            logger.info("  %s: GPI, SP removed, %d-%d (%d aa)",
+                        target, start, topo.seq_length, len(seq))
+            return (seq, f"mature_{start}-{topo.seq_length}", "ok")
+
+    # Soluble → remove signal peptide
+    if topo.signal_peptide is not None:
+        start = topo.signal_peptide[1] + 1
+        seq = trim_sequence(full_seq, start, topo.seq_length)
+        logger.info("  %s: soluble, SP 1-%d removed (%d aa)",
+                     target, topo.signal_peptide[1], len(seq))
+        return (seq, f"mature_{start}-{topo.seq_length}", "ok")
+
+    # No annotations → full-length
+    logger.info("  %s: soluble, no SP, full-length (%d aa)",
+                target, len(full_seq))
+    return (full_seq, "full_length", "ok")
+
+
+# ---------------------------------------------------------------------------
+# Main pipeline
+# ---------------------------------------------------------------------------
 def fetch_all_sequences(
     candidates_path: Path,
     fasta_dir: Path,
@@ -412,29 +383,21 @@ def fetch_all_sequences(
 ) -> dict[str, dict]:
     """Fetch sequences for all candidates and write two-chain FASTAs.
 
-    For transmembrane proteins, fetches UniProt topology and truncates to
-    the extracellular domain (after signal peptide, before first TM helix).
-    This is required because sFLT1 is extracellular and cannot interact with
-    cytoplasmic domains. See CLAUDE.md "Protein localization filter" guardrail.
-
     Parameters
     ----------
     candidates_path : Path
-        Path to candidates CSV (must have 'target' and 'uniprot' columns).
+        CSV with 'target' and 'uniprot' columns.
     fasta_dir : Path
         Output directory for FASTA files.
     construct : FLT1Construct, optional
-        Which sFLT1/FLT1 construct to use for Chain A. Defaults to D1-D3.
+        sFLT1 construct for Chain A. Defaults to D1-D3.
     apply_ectodomain_filter : bool
-        If True (default), truncate transmembrane proteins to their
-        extracellular domain. If False, use full-length sequences.
+        Truncate TM proteins to ECD, remove signal peptides. Default True.
 
     Returns
     -------
     dict[str, dict]
-        Mapping of target name -> {"uniprot": str, "fasta_path": str,
-        "partner_length": int, "total_residues": int, "status": str,
-        "topology": str, "region": str}.
+        Per-target results with status, lengths, and topology info.
     """
     import pandas as pd
 
@@ -452,17 +415,12 @@ def fetch_all_sequences(
 
     # Save construct reference
     tag = construct.name.lower().replace("-", "")
-    sflt1_ref_path = fasta_dir / f"sflt1_{tag}_reference.fasta"
-    with open(sflt1_ref_path, "w") as f:
-        f.write(
-            f">{construct.fasta_header_tag}|{SFLT1_UNIPROT}"
-            f"|residues_{construct.start}-{construct.end}\n"
-        )
+    ref_path = fasta_dir / f"sflt1_{tag}_reference.fasta"
+    with open(ref_path, "w") as f:
+        f.write(f">{construct.fasta_header_tag}|{SFLT1_UNIPROT}"
+                f"|residues_{construct.start}-{construct.end}\n")
         for i in range(0, len(sflt1_seq), 80):
             f.write(sflt1_seq[i : i + 80] + "\n")
-    logger.info(
-        "Saved sFLT1 reference: %s (%d aa)", sflt1_ref_path.name, len(sflt1_seq)
-    )
 
     results = {}
     for _, row in candidates.iterrows():
@@ -470,10 +428,10 @@ def fetch_all_sequences(
         uniprot = row["uniprot"]
 
         if not isinstance(uniprot, str) or len(uniprot) < 3:
-            logger.warning("Skipping %s: invalid UniProt accession '%s'", target, uniprot)
+            logger.warning("Skipping %s: invalid accession '%s'", target, uniprot)
             results[target] = {
                 "uniprot": uniprot, "fasta_path": None,
-                "partner_length": 0, "total_residues": 0,
+                "partner_length": 0, "full_length": 0, "total_residues": 0,
                 "status": "no_uniprot", "topology": "unknown", "region": "",
             }
             continue
@@ -485,89 +443,46 @@ def fetch_all_sequences(
         if fasta_text is None:
             results[target] = {
                 "uniprot": uniprot, "fasta_path": None,
-                "partner_length": 0, "total_residues": 0,
+                "partner_length": 0, "full_length": 0, "total_residues": 0,
                 "status": "fetch_failed", "topology": "unknown", "region": "",
             }
             continue
 
         full_seq = parse_fasta_sequence(fasta_text)
-        partner_seq = full_seq
-        partner_region = ""
-        topology_type = "soluble"
 
-        # Apply ectodomain filter for transmembrane proteins
         if apply_ectodomain_filter:
             topo = fetch_topology_from_uniprot(uniprot)
             time.sleep(REQUEST_DELAY)
 
-            if topo is not None and topo.is_transmembrane:
+            if topo is not None:
+                partner_seq, partner_region, status = select_partner_region(
+                    full_seq, topo, target
+                )
                 topology_type = topo.protein_type
-                ecto_range = topo.ectodomain_range
 
-                if ecto_range is not None:
-                    ecto_len = ecto_range[1] - ecto_range[0] + 1
-                    if ecto_len < MIN_ECTODOMAIN_LENGTH:
-                        logger.warning(
-                            "  %s: ectodomain too short (%d aa < %d min), "
-                            "using full-length",
-                            target, ecto_len, MIN_ECTODOMAIN_LENGTH,
-                        )
-                    else:
-                        partner_seq = trim_sequence(
-                            full_seq, ecto_range[0], ecto_range[1]
-                        )
-                        partner_region = (
-                            f"ectodomain_{ecto_range[0]}-{ecto_range[1]}"
-                        )
-                        logger.info(
-                            "  %s: %s, ectodomain %d-%d (%d aa, "
-                            "trimmed from %d aa, saved %d aa)",
-                            target, topology_type,
-                            ecto_range[0], ecto_range[1], len(partner_seq),
-                            len(full_seq), len(full_seq) - len(partner_seq),
-                        )
-                else:
-                    logger.warning(
-                        "  %s: TM protein but no ectodomain range found, "
-                        "using full-length",
-                        target,
-                    )
-            elif topo is not None:
-                topology_type = topo.protein_type
-                # GPI-anchored proteins: use Chain boundaries (excludes
-                # signal peptide and GPI-signal tail)
-                if topo.protein_type == "gpi_anchored" and topo.chain is not None:
-                    partner_seq = trim_sequence(
-                        full_seq, topo.chain[0], topo.chain[1]
-                    )
-                    partner_region = (
-                        f"mature_{topo.chain[0]}-{topo.chain[1]}"
-                    )
-                    logger.info(
-                        "  %s: GPI-anchored, using Chain %d-%d (%d aa, "
-                        "trimmed from %d aa)",
-                        target, topo.chain[0], topo.chain[1],
-                        len(partner_seq), len(full_seq),
-                    )
-                # Soluble/secreted proteins: remove signal peptide if present
-                elif topo.signal_peptide is not None:
-                    mature_start = topo.signal_peptide[1] + 1
-                    partner_seq = trim_sequence(full_seq, mature_start, len(full_seq))
-                    partner_region = f"mature_{mature_start}-{len(full_seq)}"
-                    logger.info(
-                        "  %s: soluble, signal peptide 1-%d removed, "
-                        "mature protein %d-%d (%d aa)",
-                        target, topo.signal_peptide[1],
-                        mature_start, len(full_seq), len(partner_seq),
-                    )
+                if status in ("intracellular", "ecd_too_short"):
+                    results[target] = {
+                        "uniprot": uniprot, "fasta_path": None,
+                        "partner_length": 0, "full_length": len(full_seq),
+                        "total_residues": 0, "status": status,
+                        "topology": topology_type, "region": "",
+                    }
+                    continue
+            else:
+                partner_seq = full_seq
+                partner_region = "full_length"
+                topology_type = "unknown"
+        else:
+            partner_seq = full_seq
+            partner_region = "full_length"
+            topology_type = "unfiltered"
 
         safe_name = target.replace("/", "-").replace(" ", "_").replace(":", "_")
         fasta_path = fasta_dir / f"sflt1_vs_{safe_name}.fasta"
 
         write_two_chain_fasta(
             sflt1_seq, partner_seq, target, uniprot, fasta_path,
-            construct=construct,
-            partner_region=partner_region,
+            construct=construct, partner_region=partner_region,
         )
 
         total = construct.length + len(partner_seq)
@@ -579,17 +494,14 @@ def fetch_all_sequences(
             "total_residues": total,
             "status": "ok",
             "topology": topology_type,
-            "region": partner_region if partner_region else "full_length",
+            "region": partner_region,
         }
-        if partner_region:
-            logger.info(
-                "  -> %s: %d aa ectodomain (of %d full), %d total, saved %s",
-                target, len(partner_seq), len(full_seq), total, fasta_path.name,
-            )
-        else:
-            logger.info(
-                "  -> %s: %d aa (full-length), %d total, saved %s",
-                target, len(partner_seq), total, fasta_path.name,
-            )
+
+    # Summary
+    ok = sum(1 for r in results.values() if r["status"] == "ok")
+    skip_ic = sum(1 for r in results.values() if r["status"] == "intracellular")
+    skip_short = sum(1 for r in results.values() if r["status"] == "ecd_too_short")
+    logger.info("Done: %d ok, %d intracellular, %d ecd_too_short, %d other",
+                ok, skip_ic, skip_short, len(results) - ok - skip_ic - skip_short)
 
     return results

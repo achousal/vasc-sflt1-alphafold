@@ -2,18 +2,6 @@
 
 sFLT1/VEGF interaction screen: SomaScan proteomics cross-cohort overlap -> pathway enrichment -> AlphaFold multimer structural prediction.
 
-## Development Workflow (MANDATORY)
-
-**Code is local-led. All code edits happen locally, never on Minerva.**
-
-| Operation | Where | How |
-|-----------|-------|-----|
-| Edit code, configs, docs, tests | **Local** (`~/projects/Elahi_Lab/vasc-sflt1-alphafold/`) | Edit directly |
-| Deploy to HPC | Local then Minerva | `git push` locally, `ssh minerva "cd /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold && git pull"` |
-| Inspect data, submit jobs, check results | **Minerva** | `ssh minerva "<cmd>"` |
-
-**Violations:** Editing any file on Minerva via `ssh minerva` that is tracked in git (code, docs, configs, tests) is a workflow violation. If you catch yourself about to do this, stop and edit locally instead.
-
 ## Data
 
 All data is SomaScan proteomics. Linear models regressed each protein on sFLT1 levels (two somamers: VEGFsR1 and VEGFsR1.1). Results are pre-computed.

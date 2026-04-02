@@ -1,7 +1,7 @@
 """04_parse_results.py -- Parse AlphaFold Multimer output files.
 
-Extracts ipTM, pTM, PAE matrices from ranking_debug.json and model outputs.
-Computes inter-chain PAE and interface residues.
+Primary source: scores.json written by 09_extract_and_cleanup.py.
+Fallback: direct parsing of ranking_debug.json and result pkl files.
 
 Scoring thresholds:
   - ipTM > 0.6 AND mean inter-chain PAE < 15A = predicted interaction
@@ -241,12 +241,119 @@ def classify_interaction(iptm: float, mean_pae: float) -> str:
     return "low_confidence"
 
 
+def _read_scores_json(scores_path: Path) -> dict | None:
+    """Read scores.json and return the summary dict, handling both schemas."""
+    try:
+        with open(scores_path) as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.warning("Failed to parse %s: %s", scores_path, e)
+        return None
+
+    if "error" in data:
+        return None
+
+    if "summary" in data:
+        return data["summary"]
+
+    # Legacy flat schema
+    return {
+        "iptm_best": data.get("iptm_best"),
+        "iptm_mean": data.get("iptm_mean"),
+        "ptm_best": data.get("ptm_best"),
+        "interchain_pae_best": data.get("mean_interchain_pae"),
+        "interchain_pae_mean": data.get("mean_interchain_pae"),
+        "interface_plddt_best": data.get("mean_interface_plddt"),
+        "interface_plddt_mean": data.get("mean_interface_plddt"),
+        "n_interface_residues_best": data.get("n_interface_residues"),
+        "ipsae_best": None,
+        "ipsae_mean": None,
+        "lis_best": None,
+        "lis_mean": None,
+        "interaction_call": data.get("interaction_call", "no_data"),
+        "template_bias_flag": None,
+        "template_coverage_a": None,
+        "template_coverage_b": None,
+        "n_predictions": data.get("n_models_parsed", 0),
+        "n_predictions_with_pae": data.get("n_models_parsed", 0),
+    }
+
+
+def _resolve_result_dir(af_output_dir: Path, target: str) -> Path | None:
+    """Resolve the AF2 result directory for a target, handling naming variants."""
+    safe = target.replace("/", "-").replace(" ", "_").replace(":", "_")
+    safe_alt = target.replace("/", "_").replace(" ", "_").replace(":", "_")
+
+    for sname in (safe, safe_alt):
+        result_dir = af_output_dir / sname
+        nested = result_dir / f"sflt1_vs_{sname}"
+        if nested.exists():
+            return nested
+        if result_dir.exists():
+            return result_dir
+
+    return None
+
+
+def _row_from_scores_json(summary: dict, target: str, uniprot: str) -> dict:
+    """Build a DataFrame row from a scores.json summary dict."""
+    def _get(key, default=np.nan):
+        v = summary.get(key)
+        return v if v is not None else default
+
+    return {
+        "target": target,
+        "uniprot": uniprot,
+        "iptm_best": _get("iptm_best"),
+        "iptm_mean": _get("iptm_mean"),
+        "iptm_std": _get("iptm_std"),
+        "ptm_best": _get("ptm_best"),
+        "mean_interchain_pae": _get("interchain_pae_mean"),
+        "interchain_pae_best": _get("interchain_pae_best"),
+        "interchain_pae_std": _get("interchain_pae_std"),
+        "mean_interface_plddt": _get("interface_plddt_mean"),
+        "interface_plddt_best": _get("interface_plddt_best"),
+        "n_interface_residues": _get("n_interface_residues_best", 0),
+        "ipsae_best": _get("ipsae_best"),
+        "ipsae_mean": _get("ipsae_mean"),
+        "lis_best": _get("lis_best"),
+        "lis_mean": _get("lis_mean"),
+        "interaction_call": summary.get("interaction_call", "no_data"),
+        "template_bias_flag": _get("template_bias_flag", False),
+        "template_coverage_a": _get("template_coverage_a"),
+        "template_coverage_b": _get("template_coverage_b"),
+        "n_models_parsed": _get("n_predictions", 0),
+    }
+
+
+def _empty_row(target: str, uniprot: str, call: str = "not_run") -> dict:
+    """Build an empty DataFrame row for missing/failed targets."""
+    return {
+        "target": target, "uniprot": uniprot,
+        "iptm_best": np.nan, "iptm_mean": np.nan, "iptm_std": np.nan,
+        "ptm_best": np.nan,
+        "mean_interchain_pae": np.nan, "interchain_pae_best": np.nan,
+        "interchain_pae_std": np.nan,
+        "mean_interface_plddt": np.nan, "interface_plddt_best": np.nan,
+        "n_interface_residues": 0,
+        "ipsae_best": np.nan, "ipsae_mean": np.nan,
+        "lis_best": np.nan, "lis_mean": np.nan,
+        "interaction_call": call,
+        "template_bias_flag": False,
+        "template_coverage_a": np.nan, "template_coverage_b": np.nan,
+        "n_models_parsed": 0,
+    }
+
+
 def parse_all_results(
     candidates_path: Path,
     af_output_dir: Path,
     sflt1_length: int = 304,
 ) -> pd.DataFrame:
     """Parse AlphaFold results for all candidates.
+
+    Primary source: scores.json (written by 09_extract_and_cleanup.py).
+    Fallback: direct parsing of ranking_debug.json + pkl files.
 
     Parameters
     ----------
@@ -260,53 +367,38 @@ def parse_all_results(
     Returns
     -------
     pd.DataFrame
-        Interaction scores with columns: target, uniprot, iptm_best,
-        iptm_mean, ptm_best, mean_interchain_pae, interaction_call,
-        n_models_parsed, rank_by_iptm.
+        Interaction scores with all metrics from scores.json plus ranking columns.
     """
     candidates = pd.read_csv(candidates_path)
     rows = []
+    n_from_json = 0
+    n_from_pkl = 0
 
     for _, cand in candidates.iterrows():
         target = cand["target"]
         uniprot = cand["uniprot"]
-        safe_name = target.replace("/", "-").replace(" ", "_").replace(":", "_")
 
-        result_dir = af_output_dir / safe_name
+        actual_result_dir = _resolve_result_dir(af_output_dir, target)
 
-        # Issue 1 fix: check for sflt1_vs_{safe_name} subdirectory first
-        nested_dir = result_dir / f"sflt1_vs_{safe_name}"
-        if nested_dir.exists():
-            actual_result_dir = nested_dir
-        else:
-            actual_result_dir = result_dir
-
-        if not actual_result_dir.exists():
-            logger.warning("No output directory for %s at %s", target, actual_result_dir)
-            rows.append({
-                "target": target, "uniprot": uniprot,
-                "iptm_best": np.nan, "iptm_mean": np.nan, "ptm_best": np.nan,
-                "mean_interchain_pae": np.nan,
-                "mean_interface_plddt": np.nan,
-                "interaction_call": "not_run",
-                "n_interface_residues": 0,
-                "n_models_parsed": 0,
-            })
+        if actual_result_dir is None:
+            logger.warning("No output directory for %s", target)
+            rows.append(_empty_row(target, uniprot, "not_run"))
             continue
 
-        # Parse ranking_debug.json
+        # --- Primary path: scores.json ---
+        scores_path = actual_result_dir / "scores.json"
+        if scores_path.exists():
+            summary = _read_scores_json(scores_path)
+            if summary is not None:
+                rows.append(_row_from_scores_json(summary, target, uniprot))
+                n_from_json += 1
+                continue
+
+        # --- Fallback: direct pkl parsing ---
         ranking_path = actual_result_dir / "ranking_debug.json"
         if not ranking_path.exists():
             logger.warning("No ranking_debug.json for %s", target)
-            rows.append({
-                "target": target, "uniprot": uniprot,
-                "iptm_best": np.nan, "iptm_mean": np.nan, "ptm_best": np.nan,
-                "mean_interchain_pae": np.nan,
-                "mean_interface_plddt": np.nan,
-                "interaction_call": "failed",
-                "n_interface_residues": 0,
-                "n_models_parsed": 0,
-            })
+            rows.append(_empty_row(target, uniprot, "failed"))
             continue
 
         model_scores = parse_ranking_debug(ranking_path)
@@ -317,7 +409,6 @@ def parse_all_results(
         iptm_mean = float(np.mean(iptm_values)) if iptm_values else np.nan
         ptm_best = max(ptm_values) if ptm_values else np.nan
 
-        # Parse PAE and interface metrics from the best model pkl
         mean_pae = np.nan
         mean_interface_plddt = np.nan
         n_interface_residues = 0
@@ -325,7 +416,6 @@ def parse_all_results(
         if model_scores:
             best_model = min(model_scores, key=lambda k: model_scores[k]["order"])
 
-            # Try PAE sources in priority order
             pae_candidates = [
                 actual_result_dir / f"pae_{best_model}.json",
                 actual_result_dir / f"result_{best_model}.pkl",
@@ -337,29 +427,29 @@ def parse_all_results(
                         mean_pae = compute_interchain_pae(pae_mat, sflt1_length)
                         break
 
-            # Issue 2 fix: compute interface metrics from best model pkl
             best_pkl = actual_result_dir / f"result_{best_model}.pkl"
             if best_pkl.exists():
                 mean_interface_plddt, n_interface_residues = compute_interface_metrics(
                     best_pkl, sflt1_length
                 )
-            else:
-                logger.debug("Best model pkl not found for %s: %s", target, best_pkl)
 
         call = classify_interaction(iptm_best, mean_pae)
 
-        rows.append({
-            "target": target,
-            "uniprot": uniprot,
+        row = _empty_row(target, uniprot, call)
+        row.update({
             "iptm_best": round(iptm_best, 4) if not np.isnan(iptm_best) else np.nan,
             "iptm_mean": round(iptm_mean, 4) if not np.isnan(iptm_mean) else np.nan,
             "ptm_best": round(ptm_best, 4) if not np.isnan(ptm_best) else np.nan,
             "mean_interchain_pae": round(mean_pae, 2) if not np.isnan(mean_pae) else np.nan,
             "mean_interface_plddt": mean_interface_plddt,
-            "interaction_call": call,
             "n_interface_residues": n_interface_residues,
             "n_models_parsed": len(iptm_values),
         })
+        rows.append(row)
+        n_from_pkl += 1
+
+    logger.info("Parsed %d targets: %d from scores.json, %d from pkl fallback",
+                len(rows), n_from_json, n_from_pkl)
 
     df = pd.DataFrame(rows)
 
