@@ -1,22 +1,938 @@
 ============================================================
 AF2 Preflight Report
-Date: 2026-03-23 13:37:13
+Date: 2026-04-02 15:17:49
 Host: mac.wireless.mountsinai.org
 ============================================================
 
 >>> FASTA integrity
 ============================================================
 FASTA Integrity Preflight Check
-  (with UniProt sequence verification)
+  (offline mode -- skipping UniProt verification)
 ============================================================
 
-  d1d3_corrected: 24 FASTA files, construct 304 aa
+  d1d3: 24 FASTA files, construct 304 aa
+
+  d1d3_fullscreen: 280 FASTA files, construct 304 aa
 
   d1d6: 11 FASTA files, construct 631 aa
 
+  d1d6_fullscreen: 280 FASTA files, construct 631 aa
+
   d1d7: 9 FASTA files, construct 721 aa
 
-  Stale artifact check (root fasta/):
+  d1d7_fullscreen: 280 FASTA files, construct 721 aa
+
+============================================================
+Bait-Target Inventory
+============================================================
+
+  d1d3 -- Bait: sFLT1 D1-D3 (residues 27-330, 304 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  APLP2.1                      Q06481        661    965  ectodomain_32-692            TM -> ectodomain
+  Amyloid-like protein 1       P51693        542    846  ectodomain_39-580            TM -> ectodomain
+  BAI1                         O14514        918   1222  ectodomain_31-948            TM -> ectodomain
+  BASI                         P35613        302    606  ectodomain_22-323            TM -> ectodomain
+  Calcineurin B a              P63098        170    474  full-length                  full-length
+  Contactin-5                  O94779       1054   1358  mature_19-1072               GPI-anchored
+  DSCAM                        O60469       1578   1882  ectodomain_18-1595           TM -> ectodomain
+  Dtk                          Q06418        389    693  ectodomain_41-429            TM -> ectodomain
+  FSTL4                        Q6MZW2        820   1124  mature_23-842                signal removed
+  MER                          Q12866        485    789  ectodomain_21-505            TM -> ectodomain
+  NGL1                         Q9HCJ2        483    787  ectodomain_45-527            TM -> ectodomain
+  NOE1                         Q99784        469    773  mature_17-485                signal removed
+  NRP1                         O14786        835   1139  ectodomain_22-856            TM -> ectodomain
+  NRP2                         O60462        844   1148  ectodomain_21-864            TM -> ectodomain
+  NRX1B.1                      P58400        346    650  ectodomain_51-396            TM -> ectodomain
+  PCDH9                        Q9HC56        791   1095  ectodomain_24-814            TM -> ectodomain
+  PLXA1                        Q9UIW2       1218   1522  ectodomain_27-1244           TM -> ectodomain
+  PLXA4                        Q9HCM2       1214   1518  ectodomain_24-1237           TM -> ectodomain
+  ROBO2                        Q9HCK4        838   1142  ectodomain_22-859            TM -> ectodomain
+  SEMA3A                       Q14563        751   1055  mature_21-771                signal removed
+  SLIK4                        Q8IW52        600    904  ectodomain_19-618            TM -> ectodomain
+  SLIT2                        O94813       1499   1803  mature_31-1529               signal removed
+  STMN3                        Q9NZ72        180    484  full-length                  full-length
+  VEGFA                        P15692        395    699  full-length                  full-length
+
+  d1d3_fullscreen -- Bait: sFLT1 D1-D3 (residues 27-330, 304 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  14-3-3 eta.1                 Q04917        246    550  full_length                  full-length
+  7B2                          P05408        186    490  mature_27-212                signal removed
+  ADA11                        O75078        509    813  ecd_226-734                  full-length
+  ADAM 23                      O75077        506    810  ecd_287-792                  full-length
+  ADAM 9                       Q13443        669    973  ecd_29-697                   full-length
+  ADPGK                        Q9BRR6        475    779  mature_23-497                signal removed
+  AGRB2                        O60241        904   1208  ecd_33-936                   full-length
+  AMGO1:ECD                    Q86WK6        345    649  ecd_28-372                   full-length
+  AMGO2                        Q86SJ2        359    663  ecd_40-398                   full-length
+  AP2A2                        O94973        939   1243  full_length                  full-length
+  APLP2.1                      Q06481        661    965  ecd_32-692                   full-length
+  AT1B1                        P05026        241    545  ecd_63-303                   full-length
+  AT1B2                        P14415        223    527  ecd_68-290                   full-length
+  ATL2                         Q86TH1        929   1233  mature_23-951                signal removed
+  Amyloid-like protein 1       P51693        542    846  ecd_39-580                   full-length
+  Apo L1.2                     O14791        371    675  mature_28-398                signal removed
+  B7-H1                        Q9NZQ7        220    524  ecd_19-238                   full-length
+  BAI1                         O14514        918   1222  ecd_31-948                   full-length
+  BAI3                         O60242        856   1160  ecd_25-880                   full-length
+  BASI                         P35613        186    490  ecd_138-323                  full-length
+  BASP                         P80723        227    531  full_length                  full-length
+  BMPER                        Q8N8U9        646    950  mature_40-685                signal removed
+  BMP RII                      Q13873        124    428  ecd_27-150                   full-length
+  BT2A1                        Q7KYR7        220    524  ecd_29-248                   full-length
+  C1QL2.1                      Q7Z5L3        266    570  mature_22-287                signal removed
+  C1QL3                        Q5VWW1        235    539  mature_21-255                signal removed
+  C1QT4.1                      Q9BXJ3        313    617  mature_17-329                signal removed
+  C1QT4.2                      Q9BXJ3        313    617  mature_17-329                signal removed
+  C1QT4                        Q9BXJ3        313    617  mature_17-329                signal removed
+  CA2D3                        Q8IZS8       1040   1344  ecd_29-1068                  full-length
+  CAH11                        O75493        305    609  mature_24-328                signal removed
+  CAN2                         P17655        700   1004  full_length                  full-length
+  CBLN4                        Q9NTU7        174    478  mature_28-201                signal removed
+  CD320                        Q9NPF0        194    498  ecd_36-229                   full-length
+  CFC1                         P0CG37        133    437  mature_26-158                signal removed
+  CHP1                         Q99653        195    499  full_length                  full-length
+  CLC2L                        P0C7M8         68    372  ecd_1-68                     full-length
+  CNTFR alpha.1                P26992        320    624  mature_23-342                signal removed
+  CNTFR alpha                  P26992        320    624  mature_23-342                signal removed
+  CNTN3                        Q9P232        983   1287  mature_20-1002               signal removed
+  CNTP2                        Q9UHC6       1235   1539  ecd_28-1262                  full-length
+  CRIM1:ECD.1                  Q9NZV1        905   1209  ecd_35-939                   full-length
+  CSMD2                        Q7Z408       3408   3712  ecd_1-3408                   full-length
+  CSPG3                        O14594       1299   1603  mature_23-1321               signal removed
+  Cadherin-12:ECD              P55289        555    859  ecd_55-609                   full-length
+  Calcineurin B a              P63098        170    474  full_length                  full-length
+  Carbonic Anhydrase IV.1      P22748        266    570  mature_19-284                signal removed
+  Carbonic Anhydrase X.1       Q9NS85        328    632  full_length                  full-length
+  Carbonic Anhydrase X         Q9NS85        328    632  full_length                  full-length
+  Contactin-4                  Q8IWV2        982   1286  mature_19-1000               signal removed
+  Contactin-5                  O94779       1054   1358  mature_19-1072               GPI-anchored
+  DAN                          P41271        165    469  mature_17-181                signal removed
+  DCAK1                        O15075        740   1044  full_length                  full-length
+  DDAH1                        O94760        285    589  full_length                  full-length
+  DEAF1                        O75398        565    869  full_length                  full-length
+  DLL1                         O00548        528    832  ecd_18-545                   full-length
+  DLL4                         Q9NR61        503    807  ecd_27-529                   full-length
+  DNJB8                        Q8NHS0        232    536  full_length                  full-length
+  DR6.1                        O75509        308    612  ecd_42-349                   full-length
+  DR6                          O75509        308    612  ecd_42-349                   full-length
+  DSCAM                        O60469       1578   1882  ecd_18-1595                  full-length
+  DSCL1                        Q8TD84       1573   1877  ecd_19-1591                  full-length
+  Dtk.1                        Q06418        389    693  ecd_41-429                   full-length
+  Dtk                          Q06418        389    693  ecd_41-429                   full-length
+  Dynamin                      Q05193        864   1168  full_length                  full-length
+  EGFL9                        Q6UY11        280    584  ecd_27-306                   full-length
+  ELAV2                        Q12926        359    663  full_length                  full-length
+  EPHA6                        Q9UF33        528    832  ecd_23-550                   full-length
+  EPHAA                        Q5JZY3        532    836  ecd_34-565                   full-length
+  EPHB3                        P54753        526    830  ecd_34-559                   full-length
+  ERBB1                        P00533        621    925  ecd_25-645                   full-length
+  ERBB3                        P21860        624    928  ecd_20-643                   full-length
+  ESAM.2                       Q96AP7        219    523  ecd_30-248                   full-length
+  Endothelin 2                 P20800        154    458  mature_25-178                signal removed
+  EphA5                        P54756        549    853  ecd_25-573                   full-length
+  EphB6.1                      O15197        563    867  ecd_32-594                   full-length
+  EphB6                        O15197        563    867  ecd_32-594                   full-length
+  Ephrin-A2.1                  O43921        164    468  mature_25-188                signal removed
+  Ephrin-A2                    O43921        164    468  mature_25-188                signal removed
+  Ephrin-A3.1                  P52797        192    496  mature_23-214                signal removed
+  Ephrin-A3                    P52797        192    496  mature_23-214                signal removed
+  Ephrin-A5                    P52803        183    487  mature_21-203                signal removed
+  Ephrin-B3:ECD                Q15768        199    503  ecd_28-226                   full-length
+  F171B:ECD.1                  Q6P995        321    625  ecd_33-353                   full-length
+  F171B:ECD                    Q6P995        321    625  ecd_33-353                   full-length
+  F19A4                        Q96LR4        105    409  mature_36-140                signal removed
+  FBLN7                        Q53RD9        415    719  mature_25-439                signal removed
+  FGFR-3:ECD                   P22607        353    657  ecd_23-375                   full-length
+  FIS1                         Q9Y3D6        122    426  ecd_1-122                    full-length
+  FLRT3:ECD                    Q9NZU0        500    804  ecd_29-528                   full-length
+  FNBP2                        O75044       1071   1375  full_length                  full-length
+  FPRP                         Q9P2B2        807   1111  ecd_26-832                   full-length
+  FSTL4                        Q6MZW2        820   1124  mature_23-842                signal removed
+  FSTL5                        Q8N475        827   1131  mature_21-847                signal removed
+  FZD1                         Q9UP38        250    554  ecd_73-322                   full-length
+  FZD9                         O00144        207    511  ecd_23-229                   full-length
+  GABR1                        Q9UBS5        572    876  ecd_20-591                   full-length
+  GAG2A                        Q6NT46        116    420  full_length                  full-length
+  GAS1                         P54826        279    583  mature_40-318                signal removed
+  GEPH                         Q9NQX3        736   1040  full_length                  full-length
+  GFRa-2                       O00451        423    727  mature_22-444                signal removed
+  GLNA                         P15104        373    677  full_length                  full-length
+  GPC2                         Q8N158        531    835  mature_24-554                signal removed
+  GPC5                         P78333        548    852  mature_25-572                signal removed
+  GRIA4                        P48058        523    827  ecd_22-544                   full-length
+  Glutaminyl cyclase           Q16769        333    637  mature_29-361                signal removed
+  Glypican 1                   P35052        507    811  mature_24-530                signal removed
+  HAGHL                        Q6PII5        290    594  full_length                  full-length
+  HE4                          Q14508         94    398  mature_31-124                signal removed
+  HPCL1                        P37235        193    497  full_length                  full-length
+  HPLN4                        Q86UW8        373    677  mature_30-402                signal removed
+  HTRA2                        O43464        104    408  ecd_1-104                    full-length
+  IGF-I sR                     P08069        195    499  ecd_741-935                  full-length
+  IGSF3                        O75054       1105   1409  ecd_20-1124                  full-length
+  IGSF8                        Q969P0        552    856  ecd_28-579                   full-length
+  INGR2:ECD                    P38484        220    524  ecd_28-247                   full-length
+  IPP2                         P41236        205    509  full_length                  full-length
+  ISLR2.1                      Q6UXK2        571    875  ecd_19-589                   full-length
+  ISLR2                        Q6UXK2        571    875  ecd_19-589                   full-length
+  JAG1:ECD                     P78504       1034   1338  ecd_34-1067                  full-length
+  JAM-B                        P57087        210    514  ecd_29-238                   full-length
+  JTB                          O76095         75    379  ecd_31-105                   full-length
+  K1467:C-term                 A2RU67        103    407  ecd_1-103                    full-length
+  K154L                        Q6ZVL6       1179   1483  ecd_1-1179                   full-length
+  KAP1                         P31321        381    685  full_length                  full-length
+  KIRR3                        Q8IZU9        514    818  ecd_22-535                   full-length
+  KRA24                        Q9BYR9        128    432  full_length                  full-length
+  KREM1.1                      Q96MU8        372    676  ecd_21-392                   full-length
+  LIF sR                       P42702        789   1093  ecd_45-833                   full-length
+  LPHN3                        Q9HAR2        843   1147  ecd_20-862                   full-length
+  LRC32                        Q14392        608    912  ecd_20-627                   full-length
+  LRFN2                        Q9ULH4        514    818  ecd_21-534                   full-length
+  LRFN4                        Q6PJG9        502    806  ecd_17-518                   full-length
+  LRIG1                        Q96JA1        760   1064  ecd_35-794                   full-length
+  LRP11.1                      Q86VZ4        413    717  ecd_38-450                   full-length
+  LRP11.2                      Q86VZ4        413    717  ecd_38-450                   full-length
+  LRP11                        Q86VZ4        413    717  ecd_38-450                   full-length
+  LRP12.1                      Q9Y561        460    764  ecd_33-492                   full-length
+  LRP12                        Q9Y561        460    764  ecd_33-492                   full-length
+  LRP4                         O75096       1705   2009  ecd_21-1725                  full-length
+  LRP6                         O75581       1351   1655  ecd_20-1370                  full-length
+  LRP8                         Q14114        785   1089  ecd_42-826                   full-length
+  LRRC4                        Q9HBW1        489    793  ecd_39-527                   full-length
+  LRRT2                        O43300        389    693  ecd_34-422                   full-length
+  LRTM2                        Q8N967        275    579  ecd_36-310                   full-length
+  MAGI2                        Q86UL8       1455   1759  full_length                  full-length
+  MANS1                        Q9H8J5        359    663  ecd_27-385                   full-length
+  MDGA2                        Q7Z553        906   1210  mature_26-931                signal removed
+  MER                          Q12866        485    789  ecd_21-505                   full-length
+  MESD1                        Q9H1K6        362    666  full_length                  full-length
+  MFGM                         Q08431        364    668  mature_24-387                signal removed
+  MMP-16.1                     P51512        445    749  ecd_120-564                  full-length
+  Marapsin                     Q9BQR3        268    572  mature_23-290                signal removed
+  Met                          P08581        908   1212  ecd_25-932                   full-length
+  N42L2                        Q92802        583    887  full_length                  full-length
+  NCAM-L1                      P32004       1101   1405  ecd_20-1120                  full-length
+  NCAM1                        P13591        699   1003  ecd_20-718                   full-length
+  NDRG3                        Q9UGV2        375    679  full_length                  full-length
+  NEGR1.1                      Q7Z3B1        287    591  mature_38-324                signal removed
+  NEGR1                        Q7Z3B1        287    591  mature_38-324                signal removed
+  NELL1                        Q92832        789   1093  mature_22-810                signal removed
+  NEO1                         Q92859       1072   1376  ecd_34-1105                  full-length
+  NETO1.1                      Q8TDF5        322    626  ecd_23-344                   full-length
+  NEUG                         Q92686         78    382  full_length                  full-length
+  NEUM                         P17677        238    542  full_length                  full-length
+  NFASC                        O94856       1193   1497  ecd_25-1217                  full-length
+  NGL1                         Q9HCJ2        483    787  ecd_45-527                   full-length
+  NLGN1.1                      Q8N2Q7        672    976  ecd_46-717                   full-length
+  NLGN1.2                      Q8N2Q7        672    976  ecd_46-717                   full-length
+  NLGN1                        Q8N2Q7        672    976  ecd_46-717                   full-length
+  NLGN2:ECD                    Q8NFZ4        663    967  ecd_15-677                   full-length
+  NLGN3.1                      Q9NZ94        672    976  ecd_38-709                   full-length
+  NLGNX                        Q8N0W4        635    939  ecd_42-676                   full-length
+  NLGNY                        Q8NFZ3        633    937  ecd_44-676                   full-length
+  NOE1                         Q99784        469    773  mature_17-485                signal removed
+  NPTN                         Q9Y639        311    615  ecd_29-339                   full-length
+  NRG3.1                       P56975        360    664  ecd_1-360                    full-length
+  NRG3                         P56975        360    664  ecd_1-360                    full-length
+  NRX1B.1                      P58400        346    650  ecd_51-396                   full-length
+  NRX1B                        P58400        346    650  ecd_51-396                   full-length
+  NSE                          P09104        434    738  full_length                  full-length
+  NTNG1                        Q9Y2I2        482    786  mature_29-510                signal removed
+  NTRI.2                       Q9P121        288    592  mature_34-321                signal removed
+  NTRI                         Q9P121        288    592  mature_34-321                signal removed
+  NXPH2                        O95156        242    546  mature_23-264                signal removed
+  Nectin-like protein 1        Q8N126        306    610  ecd_25-330                   full-length
+  Nectin-like protein 2        Q9BY67        330    634  ecd_45-374                   full-length
+  Nectin-like protein 3        Q8N3J6        343    647  ecd_25-367                   full-length
+  Nogo Receptor                Q9BZR6        421    725  mature_27-447                signal removed
+  OBCAM                        Q14982        295    599  mature_28-322                signal removed
+  OX2G                         P41217        202    506  ecd_31-232                   full-length
+  PC4L1                        A6NKN8         68    372  full_length                  full-length
+  PCD17                        O14917        690    994  ecd_18-707                   full-length
+  PCDC2                        Q9Y5I4        666    970  ecd_43-708                   full-length
+  PCDGA                        Q9Y5H3        664    968  ecd_33-696                   full-length
+  PCDGK                        Q9UN70        662    966  ecd_32-693                   full-length
+  PCDH1                        Q08174        795   1099  ecd_58-852                   full-length
+  PCDH9                        Q9HC56        791   1095  ecd_24-814                   full-length
+  PLXA1                        Q9UIW2       1218   1522  ecd_27-1244                  full-length
+  PLXA4                        Q9HCM2       1214   1518  ecd_24-1237                  full-length
+  PLXC1                        O60486        910   1214  ecd_35-944                   full-length
+  PLXD1                        Q9Y4D7       1225   1529  ecd_47-1271                  full-length
+  PPR29                        Q5R3F8        375    679  ecd_23-397                   full-length
+  PRRT2                        Q7Z6L0        317    621  ecd_1-317                    full-length
+  PTPRD                        P23468       1245   1549  ecd_21-1265                  full-length
+  PTPRJ                        Q12913        940   1244  ecd_36-975                   full-length
+  R4RL1                        Q86UN2        396    700  mature_25-420                signal removed
+  RELT                         Q969Z4        137    441  ecd_26-162                   full-length
+  RET                          P07949        607    911  ecd_29-635                   full-length
+  RGM-C                        Q6ZVN8        365    669  mature_36-400                signal removed
+  RGMA                         Q96B86        256    560  mature_169-424               signal removed
+  RHG30                        Q7Z6I6       1101   1405  full_length                  full-length
+  RNase 1                      P07998        128    432  mature_29-156                signal removed
+  ROBO1                        Q9Y6N7        872   1176  ecd_26-897                   full-length
+  ROBO2                        Q9HCK4        838   1142  ecd_22-859                   full-length
+  RSPO3.1                      Q9BXY4        251    555  mature_22-272                signal removed
+  RSPO3                        Q9BXY4        251    555  mature_22-272                signal removed
+  SARP-2                       Q8N474        283    587  mature_32-314                signal removed
+  SCN2B                        O60939        128    432  ecd_30-157                   full-length
+  SCUB3                        Q8IX30        973   1277  mature_21-993                signal removed
+  SEM4A                        Q9H3S1        651    955  ecd_33-683                   full-length
+  SEM4D                        Q92854        713   1017  ecd_22-734                   full-length
+  SEM4G                        Q9NTN9        658    962  ecd_18-675                   full-length
+  SEM6B                        Q9H3T3        578    882  ecd_26-603                   full-length
+  SEM6D                        Q8NFY4        642    946  ecd_21-662                   full-length
+  SG1D1                        O95968         69    373  mature_22-90                 signal removed
+  SLIK1.1                      Q96PX8        605    909  ecd_18-622                   full-length
+  SLIK1                        Q96PX8        605    909  ecd_18-622                   full-length
+  SLIK2                        Q9H156        600    904  ecd_22-621                   full-length
+  SLIK3                        O94933        626    930  ecd_29-654                   full-length
+  SLIK4                        Q8IW52        600    904  ecd_19-618                   full-length
+  SLIK5                        O94991        624    928  ecd_41-664                   full-length
+  SLIT1                        O75093       1501   1805  mature_34-1534               signal removed
+  SLIT2                        O94813       1499   1803  mature_31-1529               signal removed
+  STALP                        Q96FJ0        436    740  full_length                  full-length
+  STX12                        Q86Y82        248    552  ecd_1-248                    full-length
+  STX1a.1                      Q16623        265    569  ecd_1-265                    full-length
+  STX1a                        Q16623        265    569  ecd_1-265                    full-length
+  STX2                         P32856        264    568  ecd_1-264                    full-length
+  STX3                         Q13277        263    567  ecd_1-263                    full-length
+  STX8                         Q9UNK0        215    519  ecd_1-215                    full-length
+  SV2A                         Q7L0J3        130    434  ecd_469-598                  full-length
+  SVIP                         Q8NHG7         77    381  full_length                  full-length
+  SYT1                         P21579         57    361  ecd_1-57                     full-length
+  Semaphorin-7A                O75326        604    908  mature_45-648                signal removed
+  Spondin-1                    Q9HCB6        779   1083  mature_29-807                signal removed
+  Syntaxin-6                   O43752        234    538  ecd_1-234                    full-length
+  T132B                        Q14DG7        903   1207  ecd_1-903                    full-length
+  T132C:ECD                    Q8N3T6        895   1199  ecd_28-922                   full-length
+  T132D                        Q14C87        885   1189  ecd_31-915                   full-length
+  TESC                         Q96BS2        214    518  full_length                  full-length
+  TIMP-3                       P35625        188    492  mature_24-211                signal removed
+  TMCC3:region 1               Q9ULS5        416    720  ecd_1-416                    full-length
+  TMEM9:ECD                    Q9P0T7         69    373  ecd_21-89                    full-length
+  TOIP1:Perinuclear            Q5JTV8        338    642  ecd_1-338                    full-length
+  TWEAK                        O43508        207    511  ecd_43-249                   full-length
+  Testican-1                   Q08629        418    722  mature_22-439                signal removed
+  Transketolase                P29401        623    927  full_length                  full-length
+  TrkB                         Q16620        399    703  ecd_32-430                   full-length
+  TrkC                         Q16288        398    702  ecd_32-429                   full-length
+  UB2V2                        Q15819        145    449  full_length                  full-length
+  UBL3                         O95164        117    421  full_length                  full-length
+  UNC5A                        Q6ZN44        281    585  ecd_26-306                   full-length
+  UNC5H4.1                     Q6UXZ4        347    651  ecd_33-379                   full-length
+  UNC5H4.2                     Q6UXZ4        347    651  ecd_33-379                   full-length
+  UNC5H4                       Q6UXZ4        347    651  ecd_33-379                   full-length
+  VTI1A                        Q96AJ9        192    496  ecd_1-192                    full-length
+  VWC2.1                       Q2TAL6        298    602  mature_28-325                signal removed
+  VWC2                         Q2TAL6        298    602  mature_28-325                signal removed
+  VWC2L                        B2RUY7        201    505  mature_22-222                signal removed
+  Vti1-rp1                     Q9UEU0        208    512  ecd_1-208                    full-length
+  WIF-1.1                      Q9Y5W5        351    655  mature_29-379                signal removed
+  WIF-1                        Q9Y5W5        351    655  mature_29-379                signal removed
+  WNT16                        Q9UBV4        336    640  mature_30-365                signal removed
+  megalin                      P98164       4398   4702  ecd_26-4423                  full-length
+  nectin-1 gamma:ECD           Q15223        325    629  ecd_31-355                   full-length
+  sICAM-5.1                    Q9UMF0        804   1108  ecd_32-835                   full-length
+  sICAM-5                      Q9UMF0        804   1108  ecd_32-835                   full-length
+  sLRP1:ECD                    Q07954       4400   4704  ecd_20-4419                  full-length
+  suPAR                        Q03405        283    587  mature_23-305                signal removed
+
+  d1d6 -- Bait: sFLT1 D1-D6 (residues 27-657, 631 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  Amyloid-like protein 1       P51693        542   1173  ectodomain_39-580            TM -> ectodomain
+  BASI                         P35613        302    933  ectodomain_22-323            TM -> ectodomain
+  Contactin-5                  O94779       1054   1685  mature_19-1072               GPI-anchored
+  NGL1                         Q9HCJ2        483   1114  ectodomain_45-527            TM -> ectodomain
+  NOE1                         Q99784        469   1100  mature_17-485                signal removed
+  NRP1                         O14786        835   1466  ectodomain_22-856            TM -> ectodomain
+  PCDH9                        Q9HC56        791   1422  ectodomain_24-814            TM -> ectodomain
+  SEMA3A                       Q14563        751   1382  mature_21-771                signal removed
+  SLIK4                        Q8IW52        600   1231  ectodomain_19-618            TM -> ectodomain
+  SLIT2                        O94813       1499   2130  mature_31-1529               signal removed
+  VEGFA                        P15692        395   1026  full-length                  full-length
+
+  d1d6_fullscreen -- Bait: sFLT1 D1-D6 (residues 27-657, 631 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  14-3-3 eta.1                 Q04917        246    877  full_length                  full-length
+  7B2                          P05408        186    817  mature_27-212                signal removed
+  ADA11                        O75078        509   1140  ecd_226-734                  full-length
+  ADAM 23                      O75077        506   1137  ecd_287-792                  full-length
+  ADAM 9                       Q13443        669   1300  ecd_29-697                   full-length
+  ADPGK                        Q9BRR6        475   1106  mature_23-497                signal removed
+  AGRB2                        O60241        904   1535  ecd_33-936                   full-length
+  AMGO1:ECD                    Q86WK6        345    976  ecd_28-372                   full-length
+  AMGO2                        Q86SJ2        359    990  ecd_40-398                   full-length
+  AP2A2                        O94973        939   1570  full_length                  full-length
+  APLP2.1                      Q06481        661   1292  ecd_32-692                   full-length
+  AT1B1                        P05026        241    872  ecd_63-303                   full-length
+  AT1B2                        P14415        223    854  ecd_68-290                   full-length
+  ATL2                         Q86TH1        929   1560  mature_23-951                signal removed
+  Amyloid-like protein 1       P51693        542   1173  ecd_39-580                   full-length
+  Apo L1.2                     O14791        371   1002  mature_28-398                signal removed
+  B7-H1                        Q9NZQ7        220    851  ecd_19-238                   full-length
+  BAI1                         O14514        918   1549  ecd_31-948                   full-length
+  BAI3                         O60242        856   1487  ecd_25-880                   full-length
+  BASI                         P35613        186    817  ecd_138-323                  full-length
+  BASP                         P80723        227    858  full_length                  full-length
+  BMPER                        Q8N8U9        646   1277  mature_40-685                signal removed
+  BMP RII                      Q13873        124    755  ecd_27-150                   full-length
+  BT2A1                        Q7KYR7        220    851  ecd_29-248                   full-length
+  C1QL2.1                      Q7Z5L3        266    897  mature_22-287                signal removed
+  C1QL3                        Q5VWW1        235    866  mature_21-255                signal removed
+  C1QT4.1                      Q9BXJ3        313    944  mature_17-329                signal removed
+  C1QT4.2                      Q9BXJ3        313    944  mature_17-329                signal removed
+  C1QT4                        Q9BXJ3        313    944  mature_17-329                signal removed
+  CA2D3                        Q8IZS8       1040   1671  ecd_29-1068                  full-length
+  CAH11                        O75493        305    936  mature_24-328                signal removed
+  CAN2                         P17655        700   1331  full_length                  full-length
+  CBLN4                        Q9NTU7        174    805  mature_28-201                signal removed
+  CD320                        Q9NPF0        194    825  ecd_36-229                   full-length
+  CFC1                         P0CG37        133    764  mature_26-158                signal removed
+  CHP1                         Q99653        195    826  full_length                  full-length
+  CLC2L                        P0C7M8         68    699  ecd_1-68                     full-length
+  CNTFR alpha.1                P26992        320    951  mature_23-342                signal removed
+  CNTFR alpha                  P26992        320    951  mature_23-342                signal removed
+  CNTN3                        Q9P232        983   1614  mature_20-1002               signal removed
+  CNTP2                        Q9UHC6       1235   1866  ecd_28-1262                  full-length
+  CRIM1:ECD.1                  Q9NZV1        905   1536  ecd_35-939                   full-length
+  CSMD2                        Q7Z408       3408   4039  ecd_1-3408                   full-length
+  CSPG3                        O14594       1299   1930  mature_23-1321               signal removed
+  Cadherin-12:ECD              P55289        555   1186  ecd_55-609                   full-length
+  Calcineurin B a              P63098        170    801  full_length                  full-length
+  Carbonic Anhydrase IV.1      P22748        266    897  mature_19-284                signal removed
+  Carbonic Anhydrase X.1       Q9NS85        328    959  full_length                  full-length
+  Carbonic Anhydrase X         Q9NS85        328    959  full_length                  full-length
+  Contactin-4                  Q8IWV2        982   1613  mature_19-1000               signal removed
+  Contactin-5                  O94779       1054   1685  mature_19-1072               GPI-anchored
+  DAN                          P41271        165    796  mature_17-181                signal removed
+  DCAK1                        O15075        740   1371  full_length                  full-length
+  DDAH1                        O94760        285    916  full_length                  full-length
+  DEAF1                        O75398        565   1196  full_length                  full-length
+  DLL1                         O00548        528   1159  ecd_18-545                   full-length
+  DLL4                         Q9NR61        503   1134  ecd_27-529                   full-length
+  DNJB8                        Q8NHS0        232    863  full_length                  full-length
+  DR6.1                        O75509        308    939  ecd_42-349                   full-length
+  DR6                          O75509        308    939  ecd_42-349                   full-length
+  DSCAM                        O60469       1578   2209  ecd_18-1595                  full-length
+  DSCL1                        Q8TD84       1573   2204  ecd_19-1591                  full-length
+  Dtk.1                        Q06418        389   1020  ecd_41-429                   full-length
+  Dtk                          Q06418        389   1020  ecd_41-429                   full-length
+  Dynamin                      Q05193        864   1495  full_length                  full-length
+  EGFL9                        Q6UY11        280    911  ecd_27-306                   full-length
+  ELAV2                        Q12926        359    990  full_length                  full-length
+  EPHA6                        Q9UF33        528   1159  ecd_23-550                   full-length
+  EPHAA                        Q5JZY3        532   1163  ecd_34-565                   full-length
+  EPHB3                        P54753        526   1157  ecd_34-559                   full-length
+  ERBB1                        P00533        621   1252  ecd_25-645                   full-length
+  ERBB3                        P21860        624   1255  ecd_20-643                   full-length
+  ESAM.2                       Q96AP7        219    850  ecd_30-248                   full-length
+  Endothelin 2                 P20800        154    785  mature_25-178                signal removed
+  EphA5                        P54756        549   1180  ecd_25-573                   full-length
+  EphB6.1                      O15197        563   1194  ecd_32-594                   full-length
+  EphB6                        O15197        563   1194  ecd_32-594                   full-length
+  Ephrin-A2.1                  O43921        164    795  mature_25-188                signal removed
+  Ephrin-A2                    O43921        164    795  mature_25-188                signal removed
+  Ephrin-A3.1                  P52797        192    823  mature_23-214                signal removed
+  Ephrin-A3                    P52797        192    823  mature_23-214                signal removed
+  Ephrin-A5                    P52803        183    814  mature_21-203                signal removed
+  Ephrin-B3:ECD                Q15768        199    830  ecd_28-226                   full-length
+  F171B:ECD.1                  Q6P995        321    952  ecd_33-353                   full-length
+  F171B:ECD                    Q6P995        321    952  ecd_33-353                   full-length
+  F19A4                        Q96LR4        105    736  mature_36-140                signal removed
+  FBLN7                        Q53RD9        415   1046  mature_25-439                signal removed
+  FGFR-3:ECD                   P22607        353    984  ecd_23-375                   full-length
+  FIS1                         Q9Y3D6        122    753  ecd_1-122                    full-length
+  FLRT3:ECD                    Q9NZU0        500   1131  ecd_29-528                   full-length
+  FNBP2                        O75044       1071   1702  full_length                  full-length
+  FPRP                         Q9P2B2        807   1438  ecd_26-832                   full-length
+  FSTL4                        Q6MZW2        820   1451  mature_23-842                signal removed
+  FSTL5                        Q8N475        827   1458  mature_21-847                signal removed
+  FZD1                         Q9UP38        250    881  ecd_73-322                   full-length
+  FZD9                         O00144        207    838  ecd_23-229                   full-length
+  GABR1                        Q9UBS5        572   1203  ecd_20-591                   full-length
+  GAG2A                        Q6NT46        116    747  full_length                  full-length
+  GAS1                         P54826        279    910  mature_40-318                signal removed
+  GEPH                         Q9NQX3        736   1367  full_length                  full-length
+  GFRa-2                       O00451        423   1054  mature_22-444                signal removed
+  GLNA                         P15104        373   1004  full_length                  full-length
+  GPC2                         Q8N158        531   1162  mature_24-554                signal removed
+  GPC5                         P78333        548   1179  mature_25-572                signal removed
+  GRIA4                        P48058        523   1154  ecd_22-544                   full-length
+  Glutaminyl cyclase           Q16769        333    964  mature_29-361                signal removed
+  Glypican 1                   P35052        507   1138  mature_24-530                signal removed
+  HAGHL                        Q6PII5        290    921  full_length                  full-length
+  HE4                          Q14508         94    725  mature_31-124                signal removed
+  HPCL1                        P37235        193    824  full_length                  full-length
+  HPLN4                        Q86UW8        373   1004  mature_30-402                signal removed
+  HTRA2                        O43464        104    735  ecd_1-104                    full-length
+  IGF-I sR                     P08069        195    826  ecd_741-935                  full-length
+  IGSF3                        O75054       1105   1736  ecd_20-1124                  full-length
+  IGSF8                        Q969P0        552   1183  ecd_28-579                   full-length
+  INGR2:ECD                    P38484        220    851  ecd_28-247                   full-length
+  IPP2                         P41236        205    836  full_length                  full-length
+  ISLR2.1                      Q6UXK2        571   1202  ecd_19-589                   full-length
+  ISLR2                        Q6UXK2        571   1202  ecd_19-589                   full-length
+  JAG1:ECD                     P78504       1034   1665  ecd_34-1067                  full-length
+  JAM-B                        P57087        210    841  ecd_29-238                   full-length
+  JTB                          O76095         75    706  ecd_31-105                   full-length
+  K1467:C-term                 A2RU67        103    734  ecd_1-103                    full-length
+  K154L                        Q6ZVL6       1179   1810  ecd_1-1179                   full-length
+  KAP1                         P31321        381   1012  full_length                  full-length
+  KIRR3                        Q8IZU9        514   1145  ecd_22-535                   full-length
+  KRA24                        Q9BYR9        128    759  full_length                  full-length
+  KREM1.1                      Q96MU8        372   1003  ecd_21-392                   full-length
+  LIF sR                       P42702        789   1420  ecd_45-833                   full-length
+  LPHN3                        Q9HAR2        843   1474  ecd_20-862                   full-length
+  LRC32                        Q14392        608   1239  ecd_20-627                   full-length
+  LRFN2                        Q9ULH4        514   1145  ecd_21-534                   full-length
+  LRFN4                        Q6PJG9        502   1133  ecd_17-518                   full-length
+  LRIG1                        Q96JA1        760   1391  ecd_35-794                   full-length
+  LRP11.1                      Q86VZ4        413   1044  ecd_38-450                   full-length
+  LRP11.2                      Q86VZ4        413   1044  ecd_38-450                   full-length
+  LRP11                        Q86VZ4        413   1044  ecd_38-450                   full-length
+  LRP12.1                      Q9Y561        460   1091  ecd_33-492                   full-length
+  LRP12                        Q9Y561        460   1091  ecd_33-492                   full-length
+  LRP4                         O75096       1705   2336  ecd_21-1725                  full-length
+  LRP6                         O75581       1351   1982  ecd_20-1370                  full-length
+  LRP8                         Q14114        785   1416  ecd_42-826                   full-length
+  LRRC4                        Q9HBW1        489   1120  ecd_39-527                   full-length
+  LRRT2                        O43300        389   1020  ecd_34-422                   full-length
+  LRTM2                        Q8N967        275    906  ecd_36-310                   full-length
+  MAGI2                        Q86UL8       1455   2086  full_length                  full-length
+  MANS1                        Q9H8J5        359    990  ecd_27-385                   full-length
+  MDGA2                        Q7Z553        906   1537  mature_26-931                signal removed
+  MER                          Q12866        485   1116  ecd_21-505                   full-length
+  MESD1                        Q9H1K6        362    993  full_length                  full-length
+  MFGM                         Q08431        364    995  mature_24-387                signal removed
+  MMP-16.1                     P51512        445   1076  ecd_120-564                  full-length
+  Marapsin                     Q9BQR3        268    899  mature_23-290                signal removed
+  Met                          P08581        908   1539  ecd_25-932                   full-length
+  N42L2                        Q92802        583   1214  full_length                  full-length
+  NCAM-L1                      P32004       1101   1732  ecd_20-1120                  full-length
+  NCAM1                        P13591        699   1330  ecd_20-718                   full-length
+  NDRG3                        Q9UGV2        375   1006  full_length                  full-length
+  NEGR1.1                      Q7Z3B1        287    918  mature_38-324                signal removed
+  NEGR1                        Q7Z3B1        287    918  mature_38-324                signal removed
+  NELL1                        Q92832        789   1420  mature_22-810                signal removed
+  NEO1                         Q92859       1072   1703  ecd_34-1105                  full-length
+  NETO1.1                      Q8TDF5        322    953  ecd_23-344                   full-length
+  NEUG                         Q92686         78    709  full_length                  full-length
+  NEUM                         P17677        238    869  full_length                  full-length
+  NFASC                        O94856       1193   1824  ecd_25-1217                  full-length
+  NGL1                         Q9HCJ2        483   1114  ecd_45-527                   full-length
+  NLGN1.1                      Q8N2Q7        672   1303  ecd_46-717                   full-length
+  NLGN1.2                      Q8N2Q7        672   1303  ecd_46-717                   full-length
+  NLGN1                        Q8N2Q7        672   1303  ecd_46-717                   full-length
+  NLGN2:ECD                    Q8NFZ4        663   1294  ecd_15-677                   full-length
+  NLGN3.1                      Q9NZ94        672   1303  ecd_38-709                   full-length
+  NLGNX                        Q8N0W4        635   1266  ecd_42-676                   full-length
+  NLGNY                        Q8NFZ3        633   1264  ecd_44-676                   full-length
+  NOE1                         Q99784        469   1100  mature_17-485                signal removed
+  NPTN                         Q9Y639        311    942  ecd_29-339                   full-length
+  NRG3.1                       P56975        360    991  ecd_1-360                    full-length
+  NRG3                         P56975        360    991  ecd_1-360                    full-length
+  NRX1B.1                      P58400        346    977  ecd_51-396                   full-length
+  NRX1B                        P58400        346    977  ecd_51-396                   full-length
+  NSE                          P09104        434   1065  full_length                  full-length
+  NTNG1                        Q9Y2I2        482   1113  mature_29-510                signal removed
+  NTRI.2                       Q9P121        288    919  mature_34-321                signal removed
+  NTRI                         Q9P121        288    919  mature_34-321                signal removed
+  NXPH2                        O95156        242    873  mature_23-264                signal removed
+  Nectin-like protein 1        Q8N126        306    937  ecd_25-330                   full-length
+  Nectin-like protein 2        Q9BY67        330    961  ecd_45-374                   full-length
+  Nectin-like protein 3        Q8N3J6        343    974  ecd_25-367                   full-length
+  Nogo Receptor                Q9BZR6        421   1052  mature_27-447                signal removed
+  OBCAM                        Q14982        295    926  mature_28-322                signal removed
+  OX2G                         P41217        202    833  ecd_31-232                   full-length
+  PC4L1                        A6NKN8         68    699  full_length                  full-length
+  PCD17                        O14917        690   1321  ecd_18-707                   full-length
+  PCDC2                        Q9Y5I4        666   1297  ecd_43-708                   full-length
+  PCDGA                        Q9Y5H3        664   1295  ecd_33-696                   full-length
+  PCDGK                        Q9UN70        662   1293  ecd_32-693                   full-length
+  PCDH1                        Q08174        795   1426  ecd_58-852                   full-length
+  PCDH9                        Q9HC56        791   1422  ecd_24-814                   full-length
+  PLXA1                        Q9UIW2       1218   1849  ecd_27-1244                  full-length
+  PLXA4                        Q9HCM2       1214   1845  ecd_24-1237                  full-length
+  PLXC1                        O60486        910   1541  ecd_35-944                   full-length
+  PLXD1                        Q9Y4D7       1225   1856  ecd_47-1271                  full-length
+  PPR29                        Q5R3F8        375   1006  ecd_23-397                   full-length
+  PRRT2                        Q7Z6L0        317    948  ecd_1-317                    full-length
+  PTPRD                        P23468       1245   1876  ecd_21-1265                  full-length
+  PTPRJ                        Q12913        940   1571  ecd_36-975                   full-length
+  R4RL1                        Q86UN2        396   1027  mature_25-420                signal removed
+  RELT                         Q969Z4        137    768  ecd_26-162                   full-length
+  RET                          P07949        607   1238  ecd_29-635                   full-length
+  RGM-C                        Q6ZVN8        365    996  mature_36-400                signal removed
+  RGMA                         Q96B86        256    887  mature_169-424               signal removed
+  RHG30                        Q7Z6I6       1101   1732  full_length                  full-length
+  RNase 1                      P07998        128    759  mature_29-156                signal removed
+  ROBO1                        Q9Y6N7        872   1503  ecd_26-897                   full-length
+  ROBO2                        Q9HCK4        838   1469  ecd_22-859                   full-length
+  RSPO3.1                      Q9BXY4        251    882  mature_22-272                signal removed
+  RSPO3                        Q9BXY4        251    882  mature_22-272                signal removed
+  SARP-2                       Q8N474        283    914  mature_32-314                signal removed
+  SCN2B                        O60939        128    759  ecd_30-157                   full-length
+  SCUB3                        Q8IX30        973   1604  mature_21-993                signal removed
+  SEM4A                        Q9H3S1        651   1282  ecd_33-683                   full-length
+  SEM4D                        Q92854        713   1344  ecd_22-734                   full-length
+  SEM4G                        Q9NTN9        658   1289  ecd_18-675                   full-length
+  SEM6B                        Q9H3T3        578   1209  ecd_26-603                   full-length
+  SEM6D                        Q8NFY4        642   1273  ecd_21-662                   full-length
+  SG1D1                        O95968         69    700  mature_22-90                 signal removed
+  SLIK1.1                      Q96PX8        605   1236  ecd_18-622                   full-length
+  SLIK1                        Q96PX8        605   1236  ecd_18-622                   full-length
+  SLIK2                        Q9H156        600   1231  ecd_22-621                   full-length
+  SLIK3                        O94933        626   1257  ecd_29-654                   full-length
+  SLIK4                        Q8IW52        600   1231  ecd_19-618                   full-length
+  SLIK5                        O94991        624   1255  ecd_41-664                   full-length
+  SLIT1                        O75093       1501   2132  mature_34-1534               signal removed
+  SLIT2                        O94813       1499   2130  mature_31-1529               signal removed
+  STALP                        Q96FJ0        436   1067  full_length                  full-length
+  STX12                        Q86Y82        248    879  ecd_1-248                    full-length
+  STX1a.1                      Q16623        265    896  ecd_1-265                    full-length
+  STX1a                        Q16623        265    896  ecd_1-265                    full-length
+  STX2                         P32856        264    895  ecd_1-264                    full-length
+  STX3                         Q13277        263    894  ecd_1-263                    full-length
+  STX8                         Q9UNK0        215    846  ecd_1-215                    full-length
+  SV2A                         Q7L0J3        130    761  ecd_469-598                  full-length
+  SVIP                         Q8NHG7         77    708  full_length                  full-length
+  SYT1                         P21579         57    688  ecd_1-57                     full-length
+  Semaphorin-7A                O75326        604   1235  mature_45-648                signal removed
+  Spondin-1                    Q9HCB6        779   1410  mature_29-807                signal removed
+  Syntaxin-6                   O43752        234    865  ecd_1-234                    full-length
+  T132B                        Q14DG7        903   1534  ecd_1-903                    full-length
+  T132C:ECD                    Q8N3T6        895   1526  ecd_28-922                   full-length
+  T132D                        Q14C87        885   1516  ecd_31-915                   full-length
+  TESC                         Q96BS2        214    845  full_length                  full-length
+  TIMP-3                       P35625        188    819  mature_24-211                signal removed
+  TMCC3:region 1               Q9ULS5        416   1047  ecd_1-416                    full-length
+  TMEM9:ECD                    Q9P0T7         69    700  ecd_21-89                    full-length
+  TOIP1:Perinuclear            Q5JTV8        338    969  ecd_1-338                    full-length
+  TWEAK                        O43508        207    838  ecd_43-249                   full-length
+  Testican-1                   Q08629        418   1049  mature_22-439                signal removed
+  Transketolase                P29401        623   1254  full_length                  full-length
+  TrkB                         Q16620        399   1030  ecd_32-430                   full-length
+  TrkC                         Q16288        398   1029  ecd_32-429                   full-length
+  UB2V2                        Q15819        145    776  full_length                  full-length
+  UBL3                         O95164        117    748  full_length                  full-length
+  UNC5A                        Q6ZN44        281    912  ecd_26-306                   full-length
+  UNC5H4.1                     Q6UXZ4        347    978  ecd_33-379                   full-length
+  UNC5H4.2                     Q6UXZ4        347    978  ecd_33-379                   full-length
+  UNC5H4                       Q6UXZ4        347    978  ecd_33-379                   full-length
+  VTI1A                        Q96AJ9        192    823  ecd_1-192                    full-length
+  VWC2.1                       Q2TAL6        298    929  mature_28-325                signal removed
+  VWC2                         Q2TAL6        298    929  mature_28-325                signal removed
+  VWC2L                        B2RUY7        201    832  mature_22-222                signal removed
+  Vti1-rp1                     Q9UEU0        208    839  ecd_1-208                    full-length
+  WIF-1.1                      Q9Y5W5        351    982  mature_29-379                signal removed
+  WIF-1                        Q9Y5W5        351    982  mature_29-379                signal removed
+  WNT16                        Q9UBV4        336    967  mature_30-365                signal removed
+  megalin                      P98164       4398   5029  ecd_26-4423                  full-length
+  nectin-1 gamma:ECD           Q15223        325    956  ecd_31-355                   full-length
+  sICAM-5.1                    Q9UMF0        804   1435  ecd_32-835                   full-length
+  sICAM-5                      Q9UMF0        804   1435  ecd_32-835                   full-length
+  sLRP1:ECD                    Q07954       4400   5031  ecd_20-4419                  full-length
+  suPAR                        Q03405        283    914  mature_23-305                signal removed
+
+  d1d7 -- Bait: sFLT1 D1-D7 (residues 27-747, 721 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  Amyloid-like protein 1       P51693        542   1263  ectodomain_39-580            TM -> ectodomain
+  BASI                         P35613        302   1023  ectodomain_22-323            TM -> ectodomain
+  Contactin-5                  O94779       1054   1775  mature_19-1072               GPI-anchored
+  NGL1                         Q9HCJ2        483   1204  ectodomain_45-527            TM -> ectodomain
+  NOE1                         Q99784        469   1190  mature_17-485                signal removed
+  NRP1                         O14786        835   1556  ectodomain_22-856            TM -> ectodomain
+  SEMA3A                       Q14563        751   1472  mature_21-771                signal removed
+  SLIK4                        Q8IW52        600   1321  ectodomain_19-618            TM -> ectodomain
+  VEGFA                        P15692        395   1116  full-length                  full-length
+
+  d1d7_fullscreen -- Bait: sFLT1 D1-D7 (residues 27-747, 721 aa)
+  Target                       UniProt    Target  Total  Region                       Type
+  ---------------------------- ---------- ------ ------  ---------------------------- ---------------
+  14-3-3 eta.1                 Q04917        246    967  full_length                  full-length
+  7B2                          P05408        186    907  mature_27-212                signal removed
+  ADA11                        O75078        509   1230  ecd_226-734                  full-length
+  ADAM 23                      O75077        506   1227  ecd_287-792                  full-length
+  ADAM 9                       Q13443        669   1390  ecd_29-697                   full-length
+  ADPGK                        Q9BRR6        475   1196  mature_23-497                signal removed
+  AGRB2                        O60241        904   1625  ecd_33-936                   full-length
+  AMGO1:ECD                    Q86WK6        345   1066  ecd_28-372                   full-length
+  AMGO2                        Q86SJ2        359   1080  ecd_40-398                   full-length
+  AP2A2                        O94973        939   1660  full_length                  full-length
+  APLP2.1                      Q06481        661   1382  ecd_32-692                   full-length
+  AT1B1                        P05026        241    962  ecd_63-303                   full-length
+  AT1B2                        P14415        223    944  ecd_68-290                   full-length
+  ATL2                         Q86TH1        929   1650  mature_23-951                signal removed
+  Amyloid-like protein 1       P51693        542   1263  ecd_39-580                   full-length
+  Apo L1.2                     O14791        371   1092  mature_28-398                signal removed
+  B7-H1                        Q9NZQ7        220    941  ecd_19-238                   full-length
+  BAI1                         O14514        918   1639  ecd_31-948                   full-length
+  BAI3                         O60242        856   1577  ecd_25-880                   full-length
+  BASI                         P35613        186    907  ecd_138-323                  full-length
+  BASP                         P80723        227    948  full_length                  full-length
+  BMPER                        Q8N8U9        646   1367  mature_40-685                signal removed
+  BMP RII                      Q13873        124    845  ecd_27-150                   full-length
+  BT2A1                        Q7KYR7        220    941  ecd_29-248                   full-length
+  C1QL2.1                      Q7Z5L3        266    987  mature_22-287                signal removed
+  C1QL3                        Q5VWW1        235    956  mature_21-255                signal removed
+  C1QT4.1                      Q9BXJ3        313   1034  mature_17-329                signal removed
+  C1QT4.2                      Q9BXJ3        313   1034  mature_17-329                signal removed
+  C1QT4                        Q9BXJ3        313   1034  mature_17-329                signal removed
+  CA2D3                        Q8IZS8       1040   1761  ecd_29-1068                  full-length
+  CAH11                        O75493        305   1026  mature_24-328                signal removed
+  CAN2                         P17655        700   1421  full_length                  full-length
+  CBLN4                        Q9NTU7        174    895  mature_28-201                signal removed
+  CD320                        Q9NPF0        194    915  ecd_36-229                   full-length
+  CFC1                         P0CG37        133    854  mature_26-158                signal removed
+  CHP1                         Q99653        195    916  full_length                  full-length
+  CLC2L                        P0C7M8         68    789  ecd_1-68                     full-length
+  CNTFR alpha.1                P26992        320   1041  mature_23-342                signal removed
+  CNTFR alpha                  P26992        320   1041  mature_23-342                signal removed
+  CNTN3                        Q9P232        983   1704  mature_20-1002               signal removed
+  CNTP2                        Q9UHC6       1235   1956  ecd_28-1262                  full-length
+  CRIM1:ECD.1                  Q9NZV1        905   1626  ecd_35-939                   full-length
+  CSMD2                        Q7Z408       3408   4129  ecd_1-3408                   full-length
+  CSPG3                        O14594       1299   2020  mature_23-1321               signal removed
+  Cadherin-12:ECD              P55289        555   1276  ecd_55-609                   full-length
+  Calcineurin B a              P63098        170    891  full_length                  full-length
+  Carbonic Anhydrase IV.1      P22748        266    987  mature_19-284                signal removed
+  Carbonic Anhydrase X.1       Q9NS85        328   1049  full_length                  full-length
+  Carbonic Anhydrase X         Q9NS85        328   1049  full_length                  full-length
+  Contactin-4                  Q8IWV2        982   1703  mature_19-1000               signal removed
+  Contactin-5                  O94779       1054   1775  mature_19-1072               GPI-anchored
+  DAN                          P41271        165    886  mature_17-181                signal removed
+  DCAK1                        O15075        740   1461  full_length                  full-length
+  DDAH1                        O94760        285   1006  full_length                  full-length
+  DEAF1                        O75398        565   1286  full_length                  full-length
+  DLL1                         O00548        528   1249  ecd_18-545                   full-length
+  DLL4                         Q9NR61        503   1224  ecd_27-529                   full-length
+  DNJB8                        Q8NHS0        232    953  full_length                  full-length
+  DR6.1                        O75509        308   1029  ecd_42-349                   full-length
+  DR6                          O75509        308   1029  ecd_42-349                   full-length
+  DSCAM                        O60469       1578   2299  ecd_18-1595                  full-length
+  DSCL1                        Q8TD84       1573   2294  ecd_19-1591                  full-length
+  Dtk.1                        Q06418        389   1110  ecd_41-429                   full-length
+  Dtk                          Q06418        389   1110  ecd_41-429                   full-length
+  Dynamin                      Q05193        864   1585  full_length                  full-length
+  EGFL9                        Q6UY11        280   1001  ecd_27-306                   full-length
+  ELAV2                        Q12926        359   1080  full_length                  full-length
+  EPHA6                        Q9UF33        528   1249  ecd_23-550                   full-length
+  EPHAA                        Q5JZY3        532   1253  ecd_34-565                   full-length
+  EPHB3                        P54753        526   1247  ecd_34-559                   full-length
+  ERBB1                        P00533        621   1342  ecd_25-645                   full-length
+  ERBB3                        P21860        624   1345  ecd_20-643                   full-length
+  ESAM.2                       Q96AP7        219    940  ecd_30-248                   full-length
+  Endothelin 2                 P20800        154    875  mature_25-178                signal removed
+  EphA5                        P54756        549   1270  ecd_25-573                   full-length
+  EphB6.1                      O15197        563   1284  ecd_32-594                   full-length
+  EphB6                        O15197        563   1284  ecd_32-594                   full-length
+  Ephrin-A2.1                  O43921        164    885  mature_25-188                signal removed
+  Ephrin-A2                    O43921        164    885  mature_25-188                signal removed
+  Ephrin-A3.1                  P52797        192    913  mature_23-214                signal removed
+  Ephrin-A3                    P52797        192    913  mature_23-214                signal removed
+  Ephrin-A5                    P52803        183    904  mature_21-203                signal removed
+  Ephrin-B3:ECD                Q15768        199    920  ecd_28-226                   full-length
+  F171B:ECD.1                  Q6P995        321   1042  ecd_33-353                   full-length
+  F171B:ECD                    Q6P995        321   1042  ecd_33-353                   full-length
+  F19A4                        Q96LR4        105    826  mature_36-140                signal removed
+  FBLN7                        Q53RD9        415   1136  mature_25-439                signal removed
+  FGFR-3:ECD                   P22607        353   1074  ecd_23-375                   full-length
+  FIS1                         Q9Y3D6        122    843  ecd_1-122                    full-length
+  FLRT3:ECD                    Q9NZU0        500   1221  ecd_29-528                   full-length
+  FNBP2                        O75044       1071   1792  full_length                  full-length
+  FPRP                         Q9P2B2        807   1528  ecd_26-832                   full-length
+  FSTL4                        Q6MZW2        820   1541  mature_23-842                signal removed
+  FSTL5                        Q8N475        827   1548  mature_21-847                signal removed
+  FZD1                         Q9UP38        250    971  ecd_73-322                   full-length
+  FZD9                         O00144        207    928  ecd_23-229                   full-length
+  GABR1                        Q9UBS5        572   1293  ecd_20-591                   full-length
+  GAG2A                        Q6NT46        116    837  full_length                  full-length
+  GAS1                         P54826        279   1000  mature_40-318                signal removed
+  GEPH                         Q9NQX3        736   1457  full_length                  full-length
+  GFRa-2                       O00451        423   1144  mature_22-444                signal removed
+  GLNA                         P15104        373   1094  full_length                  full-length
+  GPC2                         Q8N158        531   1252  mature_24-554                signal removed
+  GPC5                         P78333        548   1269  mature_25-572                signal removed
+  GRIA4                        P48058        523   1244  ecd_22-544                   full-length
+  Glutaminyl cyclase           Q16769        333   1054  mature_29-361                signal removed
+  Glypican 1                   P35052        507   1228  mature_24-530                signal removed
+  HAGHL                        Q6PII5        290   1011  full_length                  full-length
+  HE4                          Q14508         94    815  mature_31-124                signal removed
+  HPCL1                        P37235        193    914  full_length                  full-length
+  HPLN4                        Q86UW8        373   1094  mature_30-402                signal removed
+  HTRA2                        O43464        104    825  ecd_1-104                    full-length
+  IGF-I sR                     P08069        195    916  ecd_741-935                  full-length
+  IGSF3                        O75054       1105   1826  ecd_20-1124                  full-length
+  IGSF8                        Q969P0        552   1273  ecd_28-579                   full-length
+  INGR2:ECD                    P38484        220    941  ecd_28-247                   full-length
+  IPP2                         P41236        205    926  full_length                  full-length
+  ISLR2.1                      Q6UXK2        571   1292  ecd_19-589                   full-length
+  ISLR2                        Q6UXK2        571   1292  ecd_19-589                   full-length
+  JAG1:ECD                     P78504       1034   1755  ecd_34-1067                  full-length
+  JAM-B                        P57087        210    931  ecd_29-238                   full-length
+  JTB                          O76095         75    796  ecd_31-105                   full-length
+  K1467:C-term                 A2RU67        103    824  ecd_1-103                    full-length
+  K154L                        Q6ZVL6       1179   1900  ecd_1-1179                   full-length
+  KAP1                         P31321        381   1102  full_length                  full-length
+  KIRR3                        Q8IZU9        514   1235  ecd_22-535                   full-length
+  KRA24                        Q9BYR9        128    849  full_length                  full-length
+  KREM1.1                      Q96MU8        372   1093  ecd_21-392                   full-length
+  LIF sR                       P42702        789   1510  ecd_45-833                   full-length
+  LPHN3                        Q9HAR2        843   1564  ecd_20-862                   full-length
+  LRC32                        Q14392        608   1329  ecd_20-627                   full-length
+  LRFN2                        Q9ULH4        514   1235  ecd_21-534                   full-length
+  LRFN4                        Q6PJG9        502   1223  ecd_17-518                   full-length
+  LRIG1                        Q96JA1        760   1481  ecd_35-794                   full-length
+  LRP11.1                      Q86VZ4        413   1134  ecd_38-450                   full-length
+  LRP11.2                      Q86VZ4        413   1134  ecd_38-450                   full-length
+  LRP11                        Q86VZ4        413   1134  ecd_38-450                   full-length
+  LRP12.1                      Q9Y561        460   1181  ecd_33-492                   full-length
+  LRP12                        Q9Y561        460   1181  ecd_33-492                   full-length
+  LRP4                         O75096       1705   2426  ecd_21-1725                  full-length
+  LRP6                         O75581       1351   2072  ecd_20-1370                  full-length
+  LRP8                         Q14114        785   1506  ecd_42-826                   full-length
+  LRRC4                        Q9HBW1        489   1210  ecd_39-527                   full-length
+  LRRT2                        O43300        389   1110  ecd_34-422                   full-length
+  LRTM2                        Q8N967        275    996  ecd_36-310                   full-length
+  MAGI2                        Q86UL8       1455   2176  full_length                  full-length
+  MANS1                        Q9H8J5        359   1080  ecd_27-385                   full-length
+  MDGA2                        Q7Z553        906   1627  mature_26-931                signal removed
+  MER                          Q12866        485   1206  ecd_21-505                   full-length
+  MESD1                        Q9H1K6        362   1083  full_length                  full-length
+  MFGM                         Q08431        364   1085  mature_24-387                signal removed
+  MMP-16.1                     P51512        445   1166  ecd_120-564                  full-length
+  Marapsin                     Q9BQR3        268    989  mature_23-290                signal removed
+  Met                          P08581        908   1629  ecd_25-932                   full-length
+  N42L2                        Q92802        583   1304  full_length                  full-length
+  NCAM-L1                      P32004       1101   1822  ecd_20-1120                  full-length
+  NCAM1                        P13591        699   1420  ecd_20-718                   full-length
+  NDRG3                        Q9UGV2        375   1096  full_length                  full-length
+  NEGR1.1                      Q7Z3B1        287   1008  mature_38-324                signal removed
+  NEGR1                        Q7Z3B1        287   1008  mature_38-324                signal removed
+  NELL1                        Q92832        789   1510  mature_22-810                signal removed
+  NEO1                         Q92859       1072   1793  ecd_34-1105                  full-length
+  NETO1.1                      Q8TDF5        322   1043  ecd_23-344                   full-length
+  NEUG                         Q92686         78    799  full_length                  full-length
+  NEUM                         P17677        238    959  full_length                  full-length
+  NFASC                        O94856       1193   1914  ecd_25-1217                  full-length
+  NGL1                         Q9HCJ2        483   1204  ecd_45-527                   full-length
+  NLGN1.1                      Q8N2Q7        672   1393  ecd_46-717                   full-length
+  NLGN1.2                      Q8N2Q7        672   1393  ecd_46-717                   full-length
+  NLGN1                        Q8N2Q7        672   1393  ecd_46-717                   full-length
+  NLGN2:ECD                    Q8NFZ4        663   1384  ecd_15-677                   full-length
+  NLGN3.1                      Q9NZ94        672   1393  ecd_38-709                   full-length
+  NLGNX                        Q8N0W4        635   1356  ecd_42-676                   full-length
+  NLGNY                        Q8NFZ3        633   1354  ecd_44-676                   full-length
+  NOE1                         Q99784        469   1190  mature_17-485                signal removed
+  NPTN                         Q9Y639        311   1032  ecd_29-339                   full-length
+  NRG3.1                       P56975        360   1081  ecd_1-360                    full-length
+  NRG3                         P56975        360   1081  ecd_1-360                    full-length
+  NRX1B.1                      P58400        346   1067  ecd_51-396                   full-length
+  NRX1B                        P58400        346   1067  ecd_51-396                   full-length
+  NSE                          P09104        434   1155  full_length                  full-length
+  NTNG1                        Q9Y2I2        482   1203  mature_29-510                signal removed
+  NTRI.2                       Q9P121        288   1009  mature_34-321                signal removed
+  NTRI                         Q9P121        288   1009  mature_34-321                signal removed
+  NXPH2                        O95156        242    963  mature_23-264                signal removed
+  Nectin-like protein 1        Q8N126        306   1027  ecd_25-330                   full-length
+  Nectin-like protein 2        Q9BY67        330   1051  ecd_45-374                   full-length
+  Nectin-like protein 3        Q8N3J6        343   1064  ecd_25-367                   full-length
+  Nogo Receptor                Q9BZR6        421   1142  mature_27-447                signal removed
+  OBCAM                        Q14982        295   1016  mature_28-322                signal removed
+  OX2G                         P41217        202    923  ecd_31-232                   full-length
+  PC4L1                        A6NKN8         68    789  full_length                  full-length
+  PCD17                        O14917        690   1411  ecd_18-707                   full-length
+  PCDC2                        Q9Y5I4        666   1387  ecd_43-708                   full-length
+  PCDGA                        Q9Y5H3        664   1385  ecd_33-696                   full-length
+  PCDGK                        Q9UN70        662   1383  ecd_32-693                   full-length
+  PCDH1                        Q08174        795   1516  ecd_58-852                   full-length
+  PCDH9                        Q9HC56        791   1512  ecd_24-814                   full-length
+  PLXA1                        Q9UIW2       1218   1939  ecd_27-1244                  full-length
+  PLXA4                        Q9HCM2       1214   1935  ecd_24-1237                  full-length
+  PLXC1                        O60486        910   1631  ecd_35-944                   full-length
+  PLXD1                        Q9Y4D7       1225   1946  ecd_47-1271                  full-length
+  PPR29                        Q5R3F8        375   1096  ecd_23-397                   full-length
+  PRRT2                        Q7Z6L0        317   1038  ecd_1-317                    full-length
+  PTPRD                        P23468       1245   1966  ecd_21-1265                  full-length
+  PTPRJ                        Q12913        940   1661  ecd_36-975                   full-length
+  R4RL1                        Q86UN2        396   1117  mature_25-420                signal removed
+  RELT                         Q969Z4        137    858  ecd_26-162                   full-length
+  RET                          P07949        607   1328  ecd_29-635                   full-length
+  RGM-C                        Q6ZVN8        365   1086  mature_36-400                signal removed
+  RGMA                         Q96B86        256    977  mature_169-424               signal removed
+  RHG30                        Q7Z6I6       1101   1822  full_length                  full-length
+  RNase 1                      P07998        128    849  mature_29-156                signal removed
+  ROBO1                        Q9Y6N7        872   1593  ecd_26-897                   full-length
+  ROBO2                        Q9HCK4        838   1559  ecd_22-859                   full-length
+  RSPO3.1                      Q9BXY4        251    972  mature_22-272                signal removed
+  RSPO3                        Q9BXY4        251    972  mature_22-272                signal removed
+  SARP-2                       Q8N474        283   1004  mature_32-314                signal removed
+  SCN2B                        O60939        128    849  ecd_30-157                   full-length
+  SCUB3                        Q8IX30        973   1694  mature_21-993                signal removed
+  SEM4A                        Q9H3S1        651   1372  ecd_33-683                   full-length
+  SEM4D                        Q92854        713   1434  ecd_22-734                   full-length
+  SEM4G                        Q9NTN9        658   1379  ecd_18-675                   full-length
+  SEM6B                        Q9H3T3        578   1299  ecd_26-603                   full-length
+  SEM6D                        Q8NFY4        642   1363  ecd_21-662                   full-length
+  SG1D1                        O95968         69    790  mature_22-90                 signal removed
+  SLIK1.1                      Q96PX8        605   1326  ecd_18-622                   full-length
+  SLIK1                        Q96PX8        605   1326  ecd_18-622                   full-length
+  SLIK2                        Q9H156        600   1321  ecd_22-621                   full-length
+  SLIK3                        O94933        626   1347  ecd_29-654                   full-length
+  SLIK4                        Q8IW52        600   1321  ecd_19-618                   full-length
+  SLIK5                        O94991        624   1345  ecd_41-664                   full-length
+  SLIT1                        O75093       1501   2222  mature_34-1534               signal removed
+  SLIT2                        O94813       1499   2220  mature_31-1529               signal removed
+  STALP                        Q96FJ0        436   1157  full_length                  full-length
+  STX12                        Q86Y82        248    969  ecd_1-248                    full-length
+  STX1a.1                      Q16623        265    986  ecd_1-265                    full-length
+  STX1a                        Q16623        265    986  ecd_1-265                    full-length
+  STX2                         P32856        264    985  ecd_1-264                    full-length
+  STX3                         Q13277        263    984  ecd_1-263                    full-length
+  STX8                         Q9UNK0        215    936  ecd_1-215                    full-length
+  SV2A                         Q7L0J3        130    851  ecd_469-598                  full-length
+  SVIP                         Q8NHG7         77    798  full_length                  full-length
+  SYT1                         P21579         57    778  ecd_1-57                     full-length
+  Semaphorin-7A                O75326        604   1325  mature_45-648                signal removed
+  Spondin-1                    Q9HCB6        779   1500  mature_29-807                signal removed
+  Syntaxin-6                   O43752        234    955  ecd_1-234                    full-length
+  T132B                        Q14DG7        903   1624  ecd_1-903                    full-length
+  T132C:ECD                    Q8N3T6        895   1616  ecd_28-922                   full-length
+  T132D                        Q14C87        885   1606  ecd_31-915                   full-length
+  TESC                         Q96BS2        214    935  full_length                  full-length
+  TIMP-3                       P35625        188    909  mature_24-211                signal removed
+  TMCC3:region 1               Q9ULS5        416   1137  ecd_1-416                    full-length
+  TMEM9:ECD                    Q9P0T7         69    790  ecd_21-89                    full-length
+  TOIP1:Perinuclear            Q5JTV8        338   1059  ecd_1-338                    full-length
+  TWEAK                        O43508        207    928  ecd_43-249                   full-length
+  Testican-1                   Q08629        418   1139  mature_22-439                signal removed
+  Transketolase                P29401        623   1344  full_length                  full-length
+  TrkB                         Q16620        399   1120  ecd_32-430                   full-length
+  TrkC                         Q16288        398   1119  ecd_32-429                   full-length
+  UB2V2                        Q15819        145    866  full_length                  full-length
+  UBL3                         O95164        117    838  full_length                  full-length
+  UNC5A                        Q6ZN44        281   1002  ecd_26-306                   full-length
+  UNC5H4.1                     Q6UXZ4        347   1068  ecd_33-379                   full-length
+  UNC5H4.2                     Q6UXZ4        347   1068  ecd_33-379                   full-length
+  UNC5H4                       Q6UXZ4        347   1068  ecd_33-379                   full-length
+  VTI1A                        Q96AJ9        192    913  ecd_1-192                    full-length
+  VWC2.1                       Q2TAL6        298   1019  mature_28-325                signal removed
+  VWC2                         Q2TAL6        298   1019  mature_28-325                signal removed
+  VWC2L                        B2RUY7        201    922  mature_22-222                signal removed
+  Vti1-rp1                     Q9UEU0        208    929  ecd_1-208                    full-length
+  WIF-1.1                      Q9Y5W5        351   1072  mature_29-379                signal removed
+  WIF-1                        Q9Y5W5        351   1072  mature_29-379                signal removed
+  WNT16                        Q9UBV4        336   1057  mature_30-365                signal removed
+  megalin                      P98164       4398   5119  ecd_26-4423                  full-length
+  nectin-1 gamma:ECD           Q15223        325   1046  ecd_31-355                   full-length
+  sICAM-5.1                    Q9UMF0        804   1525  ecd_32-835                   full-length
+  sICAM-5                      Q9UMF0        804   1525  ecd_32-835                   full-length
+  sLRP1:ECD                    Q07954       4400   5121  ecd_20-4419                  full-length
+  suPAR                        Q03405        283   1004  mature_23-305                signal removed
 
 ============================================================
 PASS: all FASTA files verified
@@ -28,7 +944,7 @@ Candidate Completeness Preflight Check
 
   Candidates CSV: 24 targets
 
-  d1d3_corrected: expecting 24 targets
+  d1d3: expecting 24 targets
     FASTA files: 24
     LSF scripts: 24
     Manifest entries: 24
@@ -56,7 +972,6 @@ AlphaFold Input Preflight Check
     --db_preset=reduced_dbs
     --max_template_date=2024-01-01
     --num_multimer_predictions_per_model=5
-    --run_relax=false
 
   Expected databases (7):
     /data/uniref90/uniref90.fasta
@@ -67,23 +982,23 @@ AlphaFold Input Preflight Check
     /data/uniprot/uniprot.fasta
     /data/small_bfd/bfd-first_non_consensus_sequences.fasta
 
-  d1d3_corrected: 24 LSF scripts
+  d1d3: 24 LSF scripts
     HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d3_corrected
-    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5
     Databases: 7/7 referenced
     FASTA paths: 24
     Output dirs: 24
 
   d1d6: 11 LSF scripts
     HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d6
-    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5
     Databases: 7/7 referenced
     FASTA paths: 11
     Output dirs: 11
 
   d1d7: 9 LSF scripts
     HPC root: /sc/arion/projects/vascbrain/andres/vasc-sflt1-alphafold/results/03_structural_prediction/d1d7
-    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5, run_relax=false
+    AF2 flags: model_preset=multimer, db_preset=reduced_dbs, max_template_date=2024-01-01, num_multimer_predictions_per_model=5
     Databases: 7/7 referenced
     FASTA paths: 9
     Output dirs: 9
@@ -92,11 +1007,69 @@ AlphaFold Input Preflight Check
 PASS: all AF2 inputs verified
   (run with --check-hpc-paths on Minerva to verify filesystem paths)
 
+>>> Full-screen readiness
 ============================================================
-SUMMARY: 3 passed, 0 failed
+Full-Screen AF2 Preflight Check
+============================================================
+
+  Consensus CSV: 1044 rows -> 705 unique targets
+
+--- UniProt Coverage ---
+  705/705 targets have valid UniProt accessions
+
+--- Name Collision Check ---
+  PASS: no name collisions after safe_name normalization
+
+--- Composition ---
+  Tier x Dual-somamer composition:
+             single     dual    total
+  Tier  1       52      312      364
+  Tier  2      314       27      341
+     Total      366      339      705
+
+--- Existing Run Overlap ---
+  Existing 24-protein run overlap:
+    Already run:     21
+    New targets:    684
+    Total screen:   705
+
+--- GPU Budget Estimate (construct: d1d3) ---
+  Offline estimate (using empirical avg from 24-protein run):
+    Targets with valid UniProt: 705
+    Avg partner length (empirical): ~640 aa
+    Avg total residues: ~944
+    Avg walltime bin: 72h
+
+  Projected walltime distribution (d1d3):
+      48h: ~  264 jobs = ~  12,672 GPU-h
+      72h: ~  264 jobs = ~  19,008 GPU-h
+      96h: ~  117 jobs = ~  11,232 GPU-h
+     144h: ~   58 jobs = ~   8,352 GPU-h
+     Total: ~  705 jobs = ~  51,264 GPU-h
+
+  Storage estimate: ~34.4 GB
+
+  Parallel execution timeline (d1d3 only):
+      8 A100s: ~267 days
+     24 A100s: ~89 days
+     64 A100s: ~33 days
+
+  All 3 constructs (d1d3 + d1d6 + d1d7): ~153,792 GPU-h
+      8 A100s: ~801 days
+     24 A100s: ~267 days
+     64 A100s: ~100 days
+
+  (run with --fetch-topology for accurate per-target estimates)
+
+============================================================
+PASS: 705 targets ready for full-screen AF2 (0 need UniProt resolution)
+
+============================================================
+SUMMARY: 4 passed, 0 failed
 ============================================================
   PASS  FASTA integrity
   PASS  Candidate completeness
   PASS  AF2 inputs
+  PASS  Full-screen readiness
 
-Report written to: /Users/andreschousal/Projects/Elahi_Lab/vasc-sflt1-alphafold/analysis/checks/preflight_report.txt
+Report written to: /Users/andreschousal/projects/Elahi_Lab/vasc-sflt1-alphafold/analysis/checks/preflight_report.txt

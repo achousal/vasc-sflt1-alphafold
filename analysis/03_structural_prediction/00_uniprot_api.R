@@ -23,7 +23,7 @@
 #   map_comments(x)                     # comment types (function, subcell, etc.)
 #
 #   # --- Ground our targets ---
-#   fetch_candidates("results/03_structural_prediction/step03_candidates.csv")
+#   fetch_candidates("/Users/andreschousal/Projects/Elahi_Lab/vasc-sflt1-alphafold/results/03_structural_prediction/step03_candidates.csv")
 #   View(prot)       # protein-level decisions
 #   View(feat)       # all features flat
 #   View(domains)    # named structural domains
@@ -500,6 +500,17 @@ show_topology <- function(x) {
                   "Lipidation", "Intramembrane", "Transit peptide", "Propeptide")
   f[feature_type %in% topo_types & (uniprot == x | target == x),
     .(feature_type, start, end, length, description)]
+}
+
+show_all <- function() {
+  #' Compact table of all fetched proteins -- type, ECD, model decision.
+  if (!exists("prot", envir = .GlobalEnv)) stop("Run fetch_candidates() first")
+  p <- get("prot", envir = .GlobalEnv)
+  print(p[, .(target, uniprot, len = seq_length, type = protein_type,
+              ecd = fifelse(!is.na(best_ecd_len),
+                paste0(best_ecd_start, "-", best_ecd_end, " (", best_ecd_len, "aa)"), ""),
+              ecd_src = fifelse(!is.na(best_ecd_source), best_ecd_source, ""),
+              domains = n_domains, model = model_region, model_len = model_length)])
 }
 
 

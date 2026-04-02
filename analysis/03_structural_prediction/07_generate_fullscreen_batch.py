@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""07_generate_fullscreen_batch.py -- Generate Tier 1 full-screen AF2 D1-D3 batch.
+"""07_generate_fullscreen_batch.py -- Generate Tier 1 full-screen AF2 batch.
 
-Scales the AF2 Multimer pipeline from the curated 24-protein list to all 364
-Tier 1 consensus targets. Excludes targets already in the existing d1d3 batch
-to avoid redundant GPU spend.
+Scales the AF2 Multimer pipeline from the curated protein list to all Tier 1
+consensus targets. Supports all sFLT1 constructs (D1-D3, D1-D6, D1-D7).
 
 Output:
-  results/03_structural_prediction/d1d3_fullscreen/
+  results/03_structural_prediction/{construct}_fullscreen/
     candidates.csv
     batch_summary.json
-    fasta/          344 two-chain FASTA files
-    jobs/           344 .lsf scripts + submit_all.sh + manifest.json + wrapper.sh
+    fasta/          ~340 two-chain FASTA files
+    jobs/           ~340 .lsf scripts + submit_all.sh + manifest.json + wrapper.sh
 
 Usage:
-    python 07_generate_fullscreen_batch.py                          # generate all
-    python 07_generate_fullscreen_batch.py --dry-run                # preview only
-    python 07_generate_fullscreen_batch.py --include-existing       # re-run overlap targets too
-    python 07_generate_fullscreen_batch.py --hpc-root /sc/arion/... # set HPC project root
+    python 07_generate_fullscreen_batch.py --construct d1d3 --include-existing
+    python 07_generate_fullscreen_batch.py --construct d1d6 --include-existing
+    python 07_generate_fullscreen_batch.py --construct d1d7 --include-existing
+    python 07_generate_fullscreen_batch.py --construct d1d3 --dry-run
 """
 
 import argparse
@@ -42,10 +41,8 @@ import importlib
 _mod02 = importlib.import_module("02_fetch_sequences")
 _mod03 = importlib.import_module("03_generate_lsf_jobs")
 
-CONSTRUCT_D1D3 = _mod02.CONSTRUCT_D1D3
+CONSTRUCTS = _mod02.CONSTRUCTS
 fetch_all_sequences = _mod02.fetch_all_sequences
-
-BATCH_NAME = "d1d3_fullscreen"
 
 
 # ---------------------------------------------------------------------------
@@ -126,16 +123,25 @@ def select_tier1_targets(
 def generate_fullscreen_batch(
     targets_df: pd.DataFrame,
     base_dir: Path,
+    construct_key: str = "d1d3",
     hpc_root: str = "",
     project_account: str = "acc_vascbrain",
-    gpu_type: str = '"a100"',
+    gpu_type: str = "",
     dry_run: bool = False,
 ) -> dict:
-    """Generate FASTAs and LSF jobs for the fullscreen Tier 1 D1-D3 batch.
+    """Generate FASTAs and LSF jobs for a fullscreen Tier 1 batch.
+
+    Parameters
+    ----------
+    construct_key : str
+        sFLT1 construct variant: d1d3, d1d6, or d1d7.
 
     Returns summary dict with counts and walltime estimates.
     """
-    batch_dir = base_dir / BATCH_NAME
+    construct = CONSTRUCTS[construct_key]
+    batch_name = f"{construct_key}_fullscreen"
+
+    batch_dir = base_dir / batch_name
     fasta_dir = batch_dir / "fasta"
     jobs_dir = batch_dir / "jobs"
     candidates_csv = batch_dir / "candidates.csv"
@@ -143,10 +149,9 @@ def generate_fullscreen_batch(
     batch_dir.mkdir(parents=True, exist_ok=True)
 
     n_targets = len(targets_df)
-    construct = CONSTRUCT_D1D3
 
     logger.info("=" * 60)
-    logger.info("Batch: %s (D1-D3, %d targets)", BATCH_NAME, n_targets)
+    logger.info("Batch: %s (%s, %d targets)", batch_name, construct.name, n_targets)
     logger.info("  Construct: %s (%d aa, residues %d-%d)",
                 construct.name, construct.length, construct.start, construct.end)
     logger.info("=" * 60)
@@ -190,7 +195,7 @@ def generate_fullscreen_batch(
     if dry_run:
         logger.info("[DRY RUN] Would generate %d LSF jobs", len(ok_targets))
         return {
-            "batch": BATCH_NAME, "construct": construct.name,
+            "batch": batch_name, "construct": construct.name,
             "n_targets": len(ok_targets), "walltime_map": walltime_map,
             "total_gpu_h": total_gpu_h,
         }
@@ -198,62 +203,21 @@ def generate_fullscreen_batch(
     # 4. Generate LSF jobs with per-target walltimes
     hpc_batch_root = ""
     if hpc_root:
-        hpc_batch_root = f"{hpc_root}/results/03_structural_prediction/{BATCH_NAME}"
+        hpc_batch_root = f"{hpc_root}/results/03_structural_prediction/{batch_name}"
 
-    # Set module-level walltime to max for this batch, then patch per-job
-    max_wt = max(
-        (v["walltime"] for v in walltime_map.values()),
-        default="72:00",
-    )
-    original_walltime = _mod03.AF_WALLTIME
-    _mod03.AF_WALLTIME = max_wt
-
+    # generate_lsf_scripts uses compute_walltime() per target internally,
+    # so each job gets the correct walltime without monkey-patching.
     scripts = _mod03.generate_lsf_scripts(
         candidates_csv, fasta_dir, jobs_dir,
         project_account=project_account,
         gpu_type=gpu_type,
         hpc_root=hpc_batch_root if hpc_batch_root else "",
+        sflt1_length=construct.length,
     )
-
-    _mod03.AF_WALLTIME = original_walltime  # restore
-
-    # 5. Patch per-job walltimes in .lsf files
-    patched_count = 0
-    for script_path in scripts:
-        target_name = script_path.stem.replace("af2_", "")
-        matched_wt = None
-        for orig_target, wt_info in walltime_map.items():
-            safe = orig_target.replace("/", "-").replace(" ", "_").replace(":", "_")
-            if safe == target_name:
-                matched_wt = wt_info["walltime"]
-                break
-
-        if matched_wt and matched_wt != max_wt:
-            content = script_path.read_text()
-            content = content.replace(f"-W {max_wt}", f"-W {matched_wt}")
-            script_path.write_text(content)
-            patched_count += 1
-
-    logger.info("Patched %d/%d LSF scripts with target-specific walltimes",
-                patched_count, len(scripts))
-
-    # Also patch walltime in manifest.json
-    manifest_path = jobs_dir / "manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text())
-        for job_key, job_entry in manifest.items():
-            target_name = job_key.replace("af2_", "")
-            for orig_target, wt_info in walltime_map.items():
-                safe = orig_target.replace("/", "-").replace(" ", "_").replace(":", "_")
-                if safe == target_name:
-                    job_entry["walltime"] = wt_info["walltime"]
-                    job_entry["total_residues"] = wt_info["total_residues"]
-                    break
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
 
     # 6. Write batch summary
     summary = {
-        "batch": BATCH_NAME,
+        "batch": batch_name,
         "construct": construct.name,
         "construct_residues": f"{construct.start}-{construct.end} ({construct.length} aa)",
         "n_targets": len(ok_targets),
@@ -274,7 +238,7 @@ def generate_fullscreen_batch(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate Tier 1 full-screen AF2 D1-D3 batch"
+        description="Generate Tier 1 full-screen AF2 batch (any construct)"
     )
     parser.add_argument(
         "--hpc-root",
@@ -283,16 +247,19 @@ def main():
         help="Absolute project root on HPC",
     )
     parser.add_argument("--project-account", type=str, default="acc_vascbrain")
-    parser.add_argument("--gpu-type", type=str, default='"a100"')
+    parser.add_argument("--gpu-type", type=str, default="",
+                        help="GPU resource constraint. Defaults to module default (v100 || a100).")
+    parser.add_argument("--construct", choices=["d1d3", "d1d6", "d1d7"], default="d1d3",
+                        help="sFLT1 construct variant (default: d1d3)")
     parser.add_argument("--include-existing", action="store_true",
-                        help="Include targets already in the d1d3 batch (re-run all 364)")
+                        help="Include targets already in the original curated batch (re-run all)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     project_root = SCRIPT_DIR.parent.parent
     results_dir = project_root / "results" / "03_structural_prediction"
     consensus_path = project_root / "results" / "01_cross_cohort_overlap" / "step01_consensus_proteins_pos.csv"
-    existing_candidates = results_dir / "d1d3" / "candidates.csv"
+    existing_candidates = results_dir / args.construct / "candidates.csv"
 
     if not consensus_path.exists():
         logger.error("Consensus CSV not found: %s", consensus_path)
@@ -313,6 +280,7 @@ def main():
     summary = generate_fullscreen_batch(
         targets_df,
         base_dir=results_dir,
+        construct_key=args.construct,
         hpc_root=args.hpc_root,
         project_account=args.project_account,
         gpu_type=args.gpu_type,
@@ -320,9 +288,10 @@ def main():
     )
 
     # Print next steps
+    batch_name = summary["batch"]
     logger.info("")
     logger.info("=" * 60)
-    logger.info("FULLSCREEN BATCH GENERATION COMPLETE")
+    logger.info("FULLSCREEN BATCH GENERATION COMPLETE (%s)", args.construct.upper())
     logger.info("=" * 60)
     logger.info("  Targets: %d", summary["n_targets"])
     logger.info("  GPU-hours: %d", summary["total_gpu_h"])
@@ -330,14 +299,14 @@ def main():
     logger.info("")
     logger.info("Next steps:")
     logger.info("  1. Validate: python analysis/checks/check_fullscreen_readiness.py")
-    logger.info("  2. git add results/03_structural_prediction/%s/", BATCH_NAME)
-    logger.info("  3. git commit -m 'feat(af2): fullscreen D1-D3 batch (%d Tier 1 targets)'",
-                summary["n_targets"])
+    logger.info("  2. git add results/03_structural_prediction/%s/", batch_name)
+    logger.info("  3. git commit -m 'feat(af2): fullscreen %s batch (%d Tier 1 targets)'",
+                args.construct.upper(), summary["n_targets"])
     logger.info("  4. git push && ssh minerva 'cd <project> && git pull'")
     logger.info("  5. bash results/03_structural_prediction/%s/jobs/submit_all.sh --dry-run",
-                BATCH_NAME)
+                batch_name)
     logger.info("  6. bash results/03_structural_prediction/%s/jobs/submit_all.sh",
-                BATCH_NAME)
+                batch_name)
 
 
 if __name__ == "__main__":
