@@ -1,50 +1,66 @@
 ---
-updated: "2026-03-23T15:15"
+updated: "2026-04-01T13:15"
 project: "vasc-sflt1-alphafold"
 ---
 
 ## What I Was Doing
 
-Full pipeline audit, signal peptide fix, preflight check system, clean slate production submission.
+Batch score extraction and analysis of the full D1-D3 AF2 screen. Ran `09_extract_and_cleanup.py` on all completed targets on Minerva, merged into a unified CSV via `10_merge_scores.py`, and updated the progress report with 148-target results.
 
 ## Current State
 
-- **24 d1d3 jobs running on Minerva** (21 RUN, 3 PEND). Job IDs 236035782 (VEGFA) + 236035796-236035819. Expected completion: 48-144h depending on target size.
-- **VEGFA test job validated** -- MSA phase running, chain_id_map.json confirms correct sequences (sFLT1 starts Ser27, 304 aa; VEGFA 395 aa full-length).
-- **d1d6 and d1d7 not yet submitted** -- ready to go, all FASTA/LSF regenerated.
-- **Stale sentinel in `d1d3/logs/sentinels/completed.log`** has one premature `af2_VEGFA` entry from a prior failed run. Clear before checking final completion counts.
+### D1-D3 screen: 148/365 scored
 
-## Session Summary
+- Orchestrator job 236397016 still managing remaining 217 targets
+- All 148 completed targets now have `scores.json` sidecars on Minerva
+- Unified scores CSV: `d1d3/step03_interaction_scores_all.csv` (Minerva + local)
+- 62 result directories exist but have no `ranking_debug.json` (in-progress or failed)
 
-1. **Material balance doc** (`docs/dev/material-balance.md`) -- full pipeline data flow from upstream LR equation through AF2 submission.
-2. **Signal peptide bug found and fixed** in `02_fetch_sequences.py` -- 5 secreted/GPI-anchored targets had signal peptides included. Fixed with `chain`, `gpi_anchor` fields in ProteinTopology.
-3. **Preflight check system** (`analysis/checks/`) -- 3 scripts + runner:
-   - `check_fasta_integrity.py` -- sequence lengths, headers, signal peptides, UniProt verification (default on), bait-target inventory table
-   - `check_candidates_complete.py` -- FASTA/LSF/manifest completeness, orphan detection
-   - `check_af2_inputs.py` -- decodes LSF base64, verifies AF2 flags, databases, paths
-   - `run_preflight.sh` -- runs all 3, writes `preflight_report.txt`
-4. **Renamed `d1d3_corrected` → `d1d3`** everywhere (code, docs, Minerva).
-5. **Removed `--run_relax`** (not supported by Minerva container).
-6. **Added `--use_gpu_relax=false`** (required by Minerva AF2.3.2).
-7. **Archived old logs** to `logs_archive_pre_20260323/` on Minerva.
-8. **Deleted all stale artifacts** -- root fasta/, root jobs/, orphan FASTA in d1d6/d1d7, old docs.
+### Key finding: VEGFA is the only consistent hit
+
+- 30/148 targets cross ipTM > 0.6, but **only VEGFA has spread < 0.10** (all 25 models agree)
+- 4 targets get "predicted" call (DDAH1, CAH11, KBRS1, CNBP1) — all fail consistency filter (spread > 0.20)
+- 20% apparent FPR at ipTM > 0.6, consistent with published AF2 multimer benchmarks
+- No novel sFLT1 binary interaction with axon guidance proteins detected in D1-D3
+
+### Cross-construct signal (unchanged from prior session)
+
+- NRP1: 0.25 (D1-D3) → 0.55 (D1-D6) → 0.60 (D1-D7) — gains with longer construct
+- NGL1: 0.26 → 0.25 → 0.61 — gains with D1-D7
+- Consistency analysis not yet applied to D1-D6/D1-D7
+
+### Code changes this session
+
+- `10_merge_scores.py` — added `safe_name_alt()` fallback for Minerva `/` -> `_` convention
+- `11_batch_extract_and_merge.sh` — new script for batch extraction + merge on Minerva (login node, no GPU)
+- Both scripts synced to Minerva
+
+### Artifacts
+
+- `d1d3/step03_interaction_scores_all.csv` — 365 rows (148 scored, 217 `not_run`)
+- `docs/dev/progress-report-2026-04-01.md` — full progress report with 148-target analysis
+- ~1.3 GB pkl files freed on Minerva during extraction
+
+### Caveat: pilot 24 targets have `no_data` PAE
+
+The original 24 pilot targets were extracted this session but their pkl files only contained `ranking_debug.json` scores (best-model pkl had already been cleaned up in a prior run, leaving only 1 pkl per target). ipTM scores are correct from `ranking_debug.json` but inter-chain PAE and interface pLDDT are missing (`no_data`). Not blocking — consistency filter works on ipTM alone.
 
 ## Next Steps
 
-1. **Monitor d1d3 jobs** -- `ssh minerva "bjobs -w | grep af2_"`
-2. **Clear stale sentinel** -- `ssh minerva "echo -n > .../d1d3/logs/sentinels/completed.log"` before checking final counts
-3. **Submit d1d6** (11 jobs) and **d1d7** (9 jobs) when ready -- no dependency on d1d3 finishing
-4. **Phase 1 analysis** (blocked on AF2 results): `04_parse_results.py` to extract ipTM/PAE scores
+1. **Re-run `11_batch_extract_and_merge.sh` as orchestrator completes batches** — script is idempotent, skips already-extracted targets
+2. **Run FLT1 PVM gate** — download SEA-AD data, submit LSF job. Highest-leverage experiment
+3. **Complete D1-D6/D1-D7** and apply consistency filter to cross-construct results
+4. **Apply ipSAE/LIS alternative scoring** once full screen completes — may rescue candidates with template bias
+5. **Decide on 3 complex targets and 8 OOM targets** (carried forward)
 
 ## Key Decisions
 
-- Single test job before batch submission catches container flag issues early.
-- `--use_gpu_relax=false` is the correct flag for Minerva's AF2.3.2 singularity build. `--run_relax` is not recognized.
-- Preflight checks run UniProt sequence verification by default (`--skip-uniprot` for offline).
-- Batch name is `d1d3` not `d1d3_corrected` -- it's the canonical batch.
+- **Minerva HPC path is `d1d3/` not `d1d3_corrected/`.** The local `batch_summary.json` references `d1d3_corrected` but Minerva filesystem uses `d1d3`. The batch script uses the Minerva path.
+- **Consistency filter (ipTM spread) confirmed as primary hit classifier.** At 148 targets, only VEGFA passes. This is the methodological contribution of the screen.
+- **Progress report framed as "148 of 365 scored, here's what we see"** — not as pilot-then-expansion narrative.
 
 ## Open Questions
 
-- Age adjustment asymmetry across cohorts (carried forward)
-- Confirm exact N and covariates with PI for GNPC, WASHU, UCSF_AD (carried forward)
-- STMN3 and Calcineurin B a are cytoplasmic -- expect low ipTM as implicit negative controls
+- 8 OOM kills at 64 GB (megalin, DSCAM, etc.) — need higher memory or construct truncation
+- 3 multi-subunit complex targets: model as 3-chain or drop?
+- Should Tier 2 candidates be added given 0% consistent hit rate in Tier 1?

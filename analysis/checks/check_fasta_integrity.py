@@ -277,7 +277,16 @@ def main():
     all_failures = []
     uniprot_cache: dict[str, str | None] = {}
 
+    # Collect all batches: pilot + fullscreen variants
+    all_batches: list[tuple[str, dict]] = []
     for batch_name, construct in CONSTRUCTS.items():
+        all_batches.append((batch_name, construct))
+        # Discover fullscreen variants (e.g. d1d3_fullscreen)
+        fullscreen_dir = RESULTS_DIR / f"{batch_name}_fullscreen"
+        if fullscreen_dir.exists():
+            all_batches.append((f"{batch_name}_fullscreen", construct))
+
+    for batch_name, construct in all_batches:
         batch_dir = RESULTS_DIR / batch_name
         if not batch_dir.exists():
             print(f"\n  {batch_name}: SKIP (directory not found)")
@@ -294,7 +303,7 @@ def main():
     print("Bait-Target Inventory")
     print("=" * 60)
 
-    for batch_name, construct in CONSTRUCTS.items():
+    for batch_name, construct in all_batches:
         fasta_dir = RESULTS_DIR / batch_name / "fasta"
         if not fasta_dir.exists():
             continue

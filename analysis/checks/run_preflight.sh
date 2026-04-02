@@ -52,6 +52,15 @@ run_check "FASTA integrity" "$SCRIPT_DIR/check_fasta_integrity.py" $SKIP_UNIPROT
 run_check "Candidate completeness" "$SCRIPT_DIR/check_candidates_complete.py"
 run_check "AF2 inputs" "$SCRIPT_DIR/check_af2_inputs.py" $CHECK_HPC
 
+# Full-screen readiness (705-target consensus)
+FETCH_TOPO=""
+for arg in "$@"; do
+    case "$arg" in
+        --fetch-topology) FETCH_TOPO="--fetch-topology" ;;
+    esac
+done
+run_check "Full-screen readiness" "$SCRIPT_DIR/check_fullscreen_readiness.py" $FETCH_TOPO
+
 echo ""
 echo "============================================================"
 echo "SUMMARY: $passed passed, $failed failed"
