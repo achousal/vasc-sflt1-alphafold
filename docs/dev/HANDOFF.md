@@ -1,75 +1,71 @@
 ---
-updated: "2026-04-02T16:00"
+updated: "2026-04-02T15:40"
 project: "vasc-sflt1-alphafold"
 ---
 
 ## What I Was Doing
 
-Full audit and correction of the AF2 target preparation pipeline before resubmitting the fullscreen batch. Upgraded scoring extraction (per-prediction metrics, ipSAE, LIS, template coverage), rewrote sequence fetch with UniProt-grounded topology, and resolved 12 decision points for resubmission.
+Fullscreen batch submission for all 3 sFLT1 constructs (D1-D3, D1-D6, D1-D7) with corrected topology pipeline. Added `--construct` flag to `07_generate_fullscreen_batch.py` so all constructs use one workflow. Regenerated FASTAs, LSF scripts, ran preflight, archived old results, and submitted to Minerva.
 
 ## Current State
 
-### Pipeline code updated (6 scripts)
+### Submitted to Minerva (in progress)
 
-- **02_fetch_sequences.py** — rewritten. Uses annotated UniProt `Topological domain: Extracellular` as primary ECD source, inferred SP->TM as fallback. Drops lumenal-only TM proteins. Takes largest single extracellular segment for multi-pass TM. Removes signal peptides from soluble/secreted.
-- **03_generate_lsf_jobs.py** — memory tier (32 GB/core for > 1600 aa total), GPU constraint updated to V100 || A100 (exclude H100).
-- **09_extract_and_cleanup.py** — extracts ipSAE, LIS, template coverage, per-prediction PAE/pLDDT from ALL predictions. Retains features.pkl.
-- **10_merge_scores.py** — reads new nested scores.json schema (summary + per_prediction).
-- **04_parse_results.py** — scores.json as primary source, pkl fallback.
-- **05_plot_results.py** — ipSAE rescue candidates, template bias warnings in reports.
-- **00_uniprot_api.R** — self-contained UniProt explorer for interactive grounding in RStudio.
+| Construct | Targets | LSF Scripts | GPU-hours | Output dir |
+|-----------|---------|-------------|-----------|------------|
+| D1-D3 | 280 | 280 | 17,616 | `d1d3_fullscreen/` |
+| D1-D6 | 280 | 280 | 22,704 | `d1d6_fullscreen/` |
+| D1-D7 | 280 | 280 | 23,928 | `d1d7_fullscreen/` |
+| **Total** | | **840** | **64,248** | |
 
-### Target disposition (from topology audit)
+- Submission was in progress at session end (`submit_all.sh` running for each construct)
+- **Verify all 840 jobs landed**: `ssh minerva "bjobs 2>&1 | grep -c af2_"` — should be 840
 
-| Category | Count |
-|---|---|
-| Total candidates | 365 |
-| Dropped (19 lumenal-only + 6 tiny ECD no annotation) | 25 |
-| To model | 340 |
-| Keep existing results (FASTA unchanged) | 68 |
-| Re-run (FASTA changed by corrections) | 95 |
-| Never ran | 166 |
-| **GPU jobs needed** | **261 (d1d3)** |
+### Topology filtering applied
 
-d1d6 and d1d7 also need regeneration with same corrections -- all three constructs submitting simultaneously.
+- 364 Tier 1 consensus targets → 280 modeled (84 filtered)
+- 30 dropped: lumenal-only TM (Golgi/ER interior, not extracellular; ADR-004)
+- 7 dropped: ECD < 50 aa
+- 47 dropped: intracellular-only, fetch failures, multi-accession complexes
 
-### Decisions documented (ADR-004)
+### Archive
 
-See `docs/dev/decisions/004-target-topology-filters.md` for full rationale:
-1. Keep intracellular proteins (negative controls + dead-cell-leaking hypothesis)
-2. Drop lumenal-only TM (Golgi/ER interior != extracellular)
-3. Largest single extracellular segment for multi-pass TM
-4. 32 GB/core memory for complexes > 1600 aa total
-5. V100 + A100 allowed (ADR-001 updated)
+- Old results moved to `_archive_pre_fullscreen/` on Minerva
+- Slimmed from 1.1 TB → 216 MB (kept scores.json, ranking_debug.json, ranked_0.pdb, timings)
+- 12 legacy AF2 jobs killed before submission
 
-### 25 running d1d3 jobs
+### Pipeline code changes (committed + pushed)
 
-Still running from prior batch. NOMO2 will timeout (only 12/25 predictions done at 24h wall). NEUM and NPTN should finish. These used old FASTAs -- results will be superseded by the corrected re-run for any target whose sequence changed.
+- `07_generate_fullscreen_batch.py`: `--construct d1d3|d1d6|d1d7` flag, removed broken `AF_WALLTIME` monkey-patching
+- `03_generate_lsf_jobs.py`: `WALLTIME_TIERS` and `WALLTIME_MAX` capped at 144h (gpu queue hard limit is 8640 min)
+- `00_uniprot_api.R`: added `show_all()` helper
+- Preflight report updated (4/4 passed)
 
-### Scoring pipeline ready
+### Walltime fix (applied on Minerva, not yet committed locally)
 
-New `scores.json` schema extracts per-prediction: ipTM, pTM, interchain PAE, interface pLDDT, ipSAE, LIS. Summary includes mean+/-std for all metrics + template coverage from features.pkl + template_bias_flag. `11_batch_extract_and_merge.sh` has `--force` flag to re-extract with new schema.
+- 9 jobs (3 per construct) had 192h walltimes exceeding the 144h gpu queue limit
+- Patched in-place on Minerva via sed: `192:00 → 144:00`
+- Source fix in `03_generate_lsf_jobs.py` done locally but not yet pushed
 
 ## Next Steps
 
-1. **Regenerate FASTAs** -- run `02_fetch_sequences.py` for all 3 constructs (d1d3, d1d6, d1d7) with corrected topology. ~2h for 365 UniProt API calls per construct.
-2. **Regenerate LSF scripts** -- run `03_generate_lsf_jobs.py` with new walltimes + memory tiers.
-3. **Clear stale sentinel** -- `echo -n > .../d1d3/logs/sentinels/completed.log`
-4. **Preflight check** -- run `analysis/checks/run_preflight.sh` to validate all FASTAs, LSF scripts, manifest.
-5. **Submit** -- orchestrator handles chunked submission. 261 d1d3 + d1d6 + d1d7 jobs.
-6. **After completion** -- run `11_batch_extract_and_merge.sh --force` to extract with new schema for all targets (including the 68 kept from prior run that have old-schema scores.json).
+1. **Verify submission** — confirm 840 jobs on queue. If `submit_all.sh` stalled, resubmit the remaining construct(s)
+2. **Commit walltime fix** — `git add analysis/03_structural_prediction/03_generate_lsf_jobs.py && git commit && git push`
+3. **Monitor batch** — `ssh minerva "bjobs 2>&1 | grep af2_ | awk '{print \$3}' | sort | uniq -c"` for PEND/RUN/DONE counts
+4. **After completion** — `bash 11_batch_extract_and_merge.sh --force` on each construct to extract scores with new schema
+5. **Positive controls missing** — VEGFA/PlGF are not in the consensus target list (they're the ligand, not SomaScan-associated). Prior d1d3 batch had them as manual additions. Consider whether to add them back as controls for the fullscreen batches
+6. **Multi-accession targets** — `UBE2N/UB2V1 Complex.1` (P61088|Q13404) failed because UniProt API doesn't accept pipe-delimited accessions. Needs a complex-aware fetch if these matter
+7. **sLRP1/megalin OOM risk** — capped at 144h walltime, but may still OOM at 128 GB. Check these targets first after results come in
 
 ## Key Decisions
 
-- **No intracellular filter.** SomaScan detected these in CSF -- modeling them is informative regardless of canonical localization.
-- **Lumenal != extracellular.** Golgi/ER lumenal domains cannot interact with extracellular sFLT1. 19 targets dropped.
-- **Annotated ECD over inferred.** UniProt `Topological domain: Extracellular` is ground truth. Fixes type II TM proteins (TWEAK, AT1B1, AT1B2) that the old SP->TM inference got wrong.
-- **Largest single segment for multi-pass TM.** Union span includes TM helices and cytoplasmic loops -- AF2 would try to fold them.
-- **V100 validated.** 181 successful runs on V100 nodes. Pool is larger than A100-only.
+- **One script, all constructs.** `07_generate_fullscreen_batch.py --construct X --include-existing` is the canonical workflow going forward
+- **144h walltime cap.** Minerva gpu queue hard limit. Targets needing >144h (megalin-class, >4000 aa total) will need checkpoint-restart or splitting
+- **Archive, don't delete.** Old results slimmed to lightweight archive preserving scores + best model
+- **No intracellular filter.** Kept from prior session — SomaScan detected these in CSF, modeling is informative
 
 ## Open Questions
 
-- sLRP1 and megalin (~4700 aa total) may still OOM at 128 GB. Will find out on submission.
-- 18 no-keyword proteins have unknown localization. Kept for now; review after results.
-- d1d6/d1d7 target lists: apply same 340-target filter, or subset to d1d3 hits only? (Decided: same full set)
-- Age adjustment asymmetry across upstream cohorts (carried forward from prior sessions)
+- Submission may not have completed for all 3 constructs — verify first thing
+- Age adjustment asymmetry across upstream cohorts (carried forward)
+- 18 no-keyword proteins with unknown localization — kept, review after results

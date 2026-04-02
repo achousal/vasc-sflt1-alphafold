@@ -57,9 +57,9 @@ WALLTIME_TIERS = [
     (1200, "72:00"),   # Medium: ~40h predicted, 72h safe
     (1600, "96:00"),   # Large: ~60h predicted, 96h safe
     (2500, "144:00"),  # Very large: ~90h predicted, 144h safe
-    (4000, "192:00"),  # Huge (megalin-class): ~130h predicted
+    (4000, "144:00"),  # Huge (megalin-class): capped at gpu queue max
 ]
-WALLTIME_MAX = "240:00"  # >4000aa: 10 days
+WALLTIME_MAX = "144:00"  # gpu queue hard limit is 8640 min = 144h
 
 
 def compute_walltime(total_residues: int) -> str:
