@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # Orchestrator tuning
 BATCH_CHUNK_SIZE = 10  # Jobs submitted per wave. Disk watchdog handles safety.
 POLL_INTERVAL_SECONDS = 120
-AF_JOB_TIMEOUT_SECONDS = 72 * 3600  # 72h for all AF jobs to finish
-ORCHESTRATOR_WALLTIME = "96:00"
+AF_JOB_TIMEOUT_SECONDS = 240 * 3600  # 10 days max walltime for largest complexes
+ORCHESTRATOR_WALLTIME = "250:00"
 ORCHESTRATOR_MEM = 2000  # MB
 # Disk safety: pause submission when filesystem usage exceeds this percentage.
 # Each AF2 job uses ~25-35 GB during run, cleaned to <50 MB on completion.
@@ -43,9 +43,37 @@ DISK_CHECK_PATH = "/sc/arion"
 # AF job resources (per job)
 AF_QUEUE = "gpu"
 AF_CORES = 4
-AF_MEM = 16000  # MB per core
-AF_WALLTIME = "24:00"
+AF_MEM = 16000  # MB per core (default; 32000 for targets > 1600 aa total)
 AF_GPU = 1
+
+# Walltime scaling based on total complex size (sFLT1 + partner residues).
+# Empirical from d1d3 batch timing on V100/A100:
+#   - MSA search: ~2-4h (size-independent with precomputed MSAs)
+#   - Per prediction: ~30 min at 500aa, ~80 min at 1000aa, ~3h at 2000aa
+#   - 5 models x 5 predictions = 25 predictions total
+# Add safety margin for queue preemption and I/O variability.
+WALLTIME_TIERS = [
+    (700,  "48:00"),   # Small complexes: ~25h predicted, 48h safe
+    (1200, "72:00"),   # Medium: ~40h predicted, 72h safe
+    (1600, "96:00"),   # Large: ~60h predicted, 96h safe
+    (2500, "144:00"),  # Very large: ~90h predicted, 144h safe
+    (4000, "192:00"),  # Huge (megalin-class): ~130h predicted
+]
+WALLTIME_MAX = "240:00"  # >4000aa: 10 days
+
+
+def compute_walltime(total_residues: int) -> str:
+    """Compute LSF walltime from total complex residue count."""
+    for threshold, walltime in WALLTIME_TIERS:
+        if total_residues <= threshold:
+            return walltime
+    return WALLTIME_MAX
+
+
+def compute_mem_per_core(total_residues: int) -> int:
+    """Memory per core in MB. 32 GB for large complexes, 16 GB otherwise.
+    See ADR-004 decision 8."""
+    return 32000 if total_residues > 1600 else AF_MEM
 
 # HPC defaults
 DEFAULT_PROJECT_ACCOUNT = "acc_vascbrain"
@@ -54,7 +82,7 @@ DEFAULT_PROJECT_ACCOUNT = "acc_vascbrain"
 # due to PTX kernel incompatibility (ptxas does not support CC 8.9).
 # V100 (CC 7.0) and A100 (CC 8.0) are known-good.
 # This string is interpolated as: #BSUB -R <GPU_TYPE>
-DEFAULT_GPU_TYPE = '"v100"'
+DEFAULT_GPU_TYPE = '"v100 || a100"'  # ADR-001 updated: allow both, exclude H100
 
 
 def _safe_name(target: str) -> str:
@@ -168,11 +196,11 @@ def _build_af_command(
         f'        echo "[$(date)] Extracting scores and cleaning pkl (sflt1_length={sflt1_length})..."',
         f'        python3 "$EXTRACT_ABS" "$AF_SUBDIR" {sflt1_length} || echo "[$(date)] WARNING: score extraction failed, falling back to direct delete"',
         '        # Safety net: delete any pkl the extract script missed',
-        '        find "$AF_SUBDIR" -name "*.pkl" -delete 2>/dev/null',
+        '        find "$AF_SUBDIR" -name "result_model_*.pkl" -delete 2>/dev/null',
         '        echo "[$(date)] Post-AF2 cleanup complete"',
         '    else',
         '        echo "[$(date)] WARNING: extract_and_cleanup.py not found, deleting pkl files directly"',
-        '        find "$AF_SUBDIR" -name "*.pkl" -delete 2>/dev/null',
+        '        find "$AF_SUBDIR" -name "result_model_*.pkl" -delete 2>/dev/null',
         '    fi',
         "else",
         '    echo "[$(date)] FATAL: No ranking_debug.json found in $OUTPUT_ABS -- AF2 failed"',
@@ -310,6 +338,15 @@ def _build_job_manifest(
             sflt1_length=sflt1_length,
         )
 
+        # Compute walltime from total residue count
+        fasta_check_path = check_dir / fasta_filename
+        total_residues = sum(
+            len(line.strip())
+            for line in fasta_check_path.read_text().splitlines()
+            if not line.startswith(">")
+        )
+        walltime = compute_walltime(total_residues)
+
         job_key = f"af2_{sname}"
         manifest[job_key] = {
             "job_name": f"af2_{sname}",
@@ -319,7 +356,8 @@ def _build_job_manifest(
             "cores": AF_CORES,
             "mem_per_core": AF_MEM,
             "gpu": AF_GPU,
-            "walltime": AF_WALLTIME,
+            "walltime": walltime,
+            "total_residues": total_residues,
             "fasta_path": str(fasta_path),
             "output_dir": str(output_dir),
             "command_b64": _encode_b64(command),

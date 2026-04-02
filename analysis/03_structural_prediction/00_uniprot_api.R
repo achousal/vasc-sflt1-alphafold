@@ -2,7 +2,7 @@
 # 14_uniprot_api.R -- UniProt explorer for AF2 target grounding
 #
 # Two modes:
-#   1. FOG OF WAR: fetch any accession(s), see what UniProt knows.
+#   1. Fetch any accession(s), see what UniProt knows.
 #      What feature types exist? What topology? What domains?
 #   2. GROUNDING: fetch all our targets, see how they map onto
 #      UniProt categories and what trimming decisions follow.
@@ -10,12 +10,12 @@
 # Usage (interactive -- source then explore):
 #   source("analysis/03_structural_prediction/14_uniprot_api.R")
 #
-#   # --- Fog of war: explore one protein ---
+#   # --- Explore one protein ---
 #   explore("P17948")                   # sFLT1 itself
 #   explore("O14786")                   # NRP1
 #   explore("P21860")                   # ERBB3
 #
-#   # --- Fog of war: what does UniProt give us? ---
+#   # --- What does UniProt give us? ---
 #   x <- fetch_one("O14786")
 #   names(x)                            # raw JSON fields
 #   map_features(x)                     # all feature types + counts

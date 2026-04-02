@@ -139,6 +139,7 @@ class ProteinTopology:
     signal_peptide: tuple[int, int] | None
     transmembrane: tuple[tuple[int, int], ...] = field(default_factory=tuple)
     extracellular: tuple[tuple[int, int], ...] = field(default_factory=tuple)
+    lumenal: tuple[tuple[int, int], ...] = field(default_factory=tuple)
     chain: tuple[int, int] | None = None
     gpi_anchor: int | None = None
     protein_type: str = "soluble"
@@ -162,15 +163,28 @@ class ProteinTopology:
         return True
 
     @property
+    def is_lumenal_only(self) -> bool:
+        """TM protein with lumenal domains but no extracellular annotation.
+        These face the Golgi/ER interior, not the extracellular space.
+        See ADR-004."""
+        return (self.is_transmembrane
+                and len(self.lumenal) > 0
+                and len(self.extracellular) == 0)
+
+    @property
     def extracellular_range(self) -> tuple[int, int] | None:
         """Best extracellular region to model. Annotated ECD first, inferred second.
 
+        Uses the largest single annotated extracellular segment, not the
+        union span. For multi-pass TM, the span would include TM helices
+        and cytoplasmic loops between extracellular segments. See ADR-004.
+
         Returns (start, end) 1-indexed, or None.
         """
-        # Strategy A: annotated extracellular topological domains
+        # Strategy A: largest annotated extracellular segment
         if self.extracellular:
-            start = min(r[0] for r in self.extracellular)
-            end = max(r[1] for r in self.extracellular)
+            best = max(self.extracellular, key=lambda r: r[1] - r[0])
+            start, end = best
             if (end - start + 1) >= MIN_ECTODOMAIN_LENGTH:
                 return (start, end)
 
@@ -219,6 +233,7 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
     signal_peptide = None
     transmembrane = []
     extracellular = []
+    lumenal = []
     chain = None
     gpi_anchor = None
 
@@ -243,6 +258,8 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
             transmembrane.append((start, end))
         elif ftype == "Topological domain" and "Extracellular" in desc:
             extracellular.append((start, end))
+        elif ftype == "Topological domain" and "Lumenal" in desc:
+            lumenal.append((start, end))
         elif ftype == "Chain" and chain is None:
             chain = (start, end)
         elif ftype == "Lipidation" and "GPI" in desc:
@@ -263,6 +280,7 @@ def _parse_topology(accession: str, data: dict) -> ProteinTopology:
         signal_peptide=signal_peptide,
         transmembrane=tuple(transmembrane),
         extracellular=tuple(extracellular),
+        lumenal=tuple(lumenal),
         chain=chain,
         gpi_anchor=gpi_anchor,
         protein_type=protein_type,
@@ -329,6 +347,12 @@ def select_partner_region(
         logger.warning("  %s: intracellular-only (%s), skipping",
                        target, ", ".join(topo.subcellular_keywords))
         return ("", "", "intracellular")
+
+    # Lumenal-only TM → skip (Golgi/ER interior, not extracellular; ADR-004)
+    if topo.is_lumenal_only:
+        logger.warning("  %s: lumenal-only TM (%d aa lumenal, no extracellular), skipping",
+                       target, sum(r[1] - r[0] + 1 for r in topo.lumenal))
+        return ("", "", "lumenal_only")
 
     # TM or multi-TM → extracellular region
     if topo.is_transmembrane:
@@ -460,7 +484,7 @@ def fetch_all_sequences(
                 )
                 topology_type = topo.protein_type
 
-                if status in ("intracellular", "ecd_too_short"):
+                if status in ("intracellular", "ecd_too_short", "lumenal_only"):
                     results[target] = {
                         "uniprot": uniprot, "fasta_path": None,
                         "partner_length": 0, "full_length": len(full_seq),
@@ -501,7 +525,9 @@ def fetch_all_sequences(
     ok = sum(1 for r in results.values() if r["status"] == "ok")
     skip_ic = sum(1 for r in results.values() if r["status"] == "intracellular")
     skip_short = sum(1 for r in results.values() if r["status"] == "ecd_too_short")
-    logger.info("Done: %d ok, %d intracellular, %d ecd_too_short, %d other",
-                ok, skip_ic, skip_short, len(results) - ok - skip_ic - skip_short)
+    skip_lum = sum(1 for r in results.values() if r["status"] == "lumenal_only")
+    logger.info("Done: %d ok, %d lumenal_only, %d ecd_too_short, %d other",
+                ok, skip_lum, skip_short,
+                len(results) - ok - skip_lum - skip_short)
 
     return results
